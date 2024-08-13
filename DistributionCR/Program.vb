@@ -1,15 +1,18 @@
 
 Option Explicit On
-Imports Microsoft.Office.Interop.Excel
-'Imports Windows.Win32.System
-Imports Excel = Microsoft.Office.Interop.Excel
+Imports System.Diagnostics.Tracing
+Imports System.Globalization
+Imports System.IO
+Imports OfficeOpenXml
+Imports OfficeOpenXml.Sorting
+Imports OfficeOpenXml.Style
 
-Module Program
 
+Public Module Program
     'Déclaration des variables  Excel
-    Public appExcel As Excel.Application     'Application Excel
-    Public wbExcel As Excel.Workbook         'Classeur Excel
-    Public wsExcel As Excel.Worksheet        'Feuille Excel
+    Public appExcel As ExcelPackage          'Application Excel
+    Public wbExcel As ExcelWorkbook          'Classeur Excel
+    Public wsExcel As ExcelWorksheet         'Feuille Excel
     Public StrInput As String                'nom complet du fichier de données
     ' dimensions des variables (à changer en cas de besoin)
     Public Const MaxFamilles As Integer = 150
@@ -41,6 +44,9 @@ Module Program
     Public CheminBureau As String                   'chemin pour sauvegarde de l'image code-barre
 
     Sub Main()
+        'Initialisation de EPPlus
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial
+
         Dim StrOption As String
         Dim TestOption As Boolean
         Console.WriteLine("  D I S T R I B U T I O N    C R O I X - R O U G E")
@@ -49,25 +55,24 @@ Module Program
         StrInput = Console.ReadLine()
 
         'Ouverture de l'application Excel
-        appExcel = CreateObject("Excel.Application")
-        wbExcel = appExcel.Workbooks.Open(StrInput)
-        appExcel.Visible = False
+        appExcel = (New ExcelPackage(New FileInfo(StrInput)))
+        wbExcel = appExcel.Workbook
 
         If FeuilleExiste("RAPPORT") = True Then
-            appExcel.Application.DisplayAlerts = False
-            wbExcel.Worksheets("RAPPORT").delete()        'supprime la feuille avant de commencer
-            appExcel.DisplayAlerts = True
+            'supprime la feuille avant de commencer
+            wbExcel.Worksheets.Delete("RAPPORT")
         End If
-        wsExcel = wbExcel.Worksheets.Add()
+        wsExcel = wbExcel.Worksheets.Add("RAPPORT")
         wsExcel.Name = "RAPPORT"
 
-        wsExcel.Cells(1, 1).value = "FEUILLE"
-        wsExcel.Cells(1, 2).value = "Problème"
-        wsExcel.Cells(1, 8).value = "Criticité"
-        With wsExcel.Range("A1:H1")
-            .Interior.ColorIndex = 6
+        wsExcel.Cells(1, 1).Value = "FEUILLE"
+        wsExcel.Cells(1, 2).Value = "Problème"
+        wsExcel.Cells(1, 8).Value = "Criticité"
+        With wsExcel.Cells("A1:H1").Style
+            .Fill.PatternType = ExcelFillStyle.Solid
+            .Fill.BackgroundColor.Indexed = 6
             .Font.Bold = True
-            .Borders(XlBordersIndex.xlEdgeBottom).LineStyle = XlLineStyle.xlContinuous
+            .Border.Bottom.Style = ExcelBorderStyle.Medium
         End With
 
         Console.WriteLine("   ")
@@ -107,16 +112,9 @@ Module Program
 
     Public Sub Colexit()
         ' ------- Sauvegarde et fermeture d'Excel -------------------------------------
-        wbExcel.Save()
-        wbExcel.Close() 'Fermeture du classeur Excel
-        appExcel.Quit() 'Fermeture de l'application Excel
+        appExcel.Save()
         appExcel = Nothing
         wbExcel = Nothing
-
-        For Each ObjPro As Process In Process.GetProcessesByName("EXCEL")
-            ObjPro.Kill()
-        Next
-
     End Sub
 
     Private Sub Repartition()
@@ -214,11 +212,8 @@ Module Program
         End If
 
         wsExcel = wbExcel.Worksheets("PRIX")
-        wsExcel.Activate()
 
-        wsExcel.Cells(1, 100).value = "=COUNTA(C[-99])"     'Compte le nbre de lignes
-        NbPrix = wsExcel.Cells(1, 100).value - 1
-        wsExcel.Range("A1").Select()
+        NbPrix = GetNonEmptyRows() - 1  'Compte le nbre de lignes
 
         If NbPrix > MaxPrix Then            'Test dépassement dimension maxi
             Call Reporting("PRIX", "ARRET", "Nombre de prix dépasse la dimension > " & MaxPrix, "RAPPORT")
@@ -228,9 +223,9 @@ Module Program
 
         If NbPrix > 0 Then                  'Début de lecture des données 
             For i = 1 To NbPrix
-                LibellePrix(i) = wsExcel.Cells(i + 1, 1).value
-                CodePrix(i) = wsExcel.Cells(i + 1, 2).value
-                CodeAida(i) = wsExcel.Cells(i + 1, 3).value
+                LibellePrix(i) = wsExcel.Cells(i + 1, 1).Value
+                CodePrix(i) = wsExcel.Cells(i + 1, 2).Value
+                CodeAida(i) = wsExcel.Cells(i + 1, 3).Value
                 If i > 1 Then
                     For j = 1 To i - 1          'Test codes en doublon
                         If CodePrix(i) = CodePrix(j) Then
@@ -256,11 +251,8 @@ Module Program
             Exit Sub
         End If
         wsExcel = wbExcel.Worksheets("VIANDES")
-        wsExcel.Activate()
 
-        wsExcel.Cells(1, 100).value = "=COUNTA(C[-99])"
-        NbDenrees = wsExcel.Cells(1, 100).value - 1
-        wsExcel.Range("A1").Select()
+        NbDenrees = GetNonEmptyRows() - 1
 
         If NbDenrees > MaxDenrees Then
             Call Reporting("VIANDES", "ARRET", "Nombre de viandes dépasse la dimension > " & MaxDenrees, "RAPPORT")
@@ -279,29 +271,29 @@ Module Program
         PTotViande = 0
         If NbDenrees > 0 Then
             For i = 1 To NbDenrees
-                Description(i) = wsExcel.Cells(i + 1, 1).value
-                PoidsTest = wsExcel.Cells(i + 1, 2).value
-                If VarType(wsExcel.Cells(i + 1, 2).value) = 5 Then      'teste le contenu de la cellule: vartype=5 => nombre
-                    Poids(i) = wsExcel.Cells(i + 1, 2).value
+                Description(i) = wsExcel.Cells(i + 1, 1).Value
+                PoidsTest = wsExcel.Cells(i + 1, 2).Value
+                If VarType(wsExcel.Cells(i + 1, 2).Value) = 5 Then      'teste le contenu de la cellule: vartype=5 => nombre
+                    Poids(i) = wsExcel.Cells(i + 1, 2).Value
                 Else
                     TexteMsg = "Poids " & PoidsTest & "  à la ligne " & i + 1 & " n'est pas un nombre!"
                     Call Reporting("VIANDES", "ALERTE", TexteMsg, "VIANDES")
                     NbErreur += 1
                 End If
-                PoidsTest = wsExcel.Cells(i + 1, 3).value
-                If VarType(wsExcel.Cells(i + 1, 3).value) = 5 Then       'teste le contenu de la cellule: vartype=5 => nombre
-                    Quant(i) = wsExcel.Cells(i + 1, 3).value
+                PoidsTest = wsExcel.Cells(i + 1, 3).Value
+                If VarType(wsExcel.Cells(i + 1, 3).Value) = 5 Then       'teste le contenu de la cellule: vartype=5 => nombre
+                    Quant(i) = wsExcel.Cells(i + 1, 3).Value
                 Else
                     TexteMsg = "Quantité " & PoidsTest & "  à la ligne " & i + 1 & " n'est pas un nombre!"
                     Call Reporting("VIANDES", "ALERTE", TexteMsg, "VIANDES")
                     NbErreur += 1
                 End If
                 ViandeSC(i) = False                 'SC = Sans Cochon = musulman
-                If wsExcel.Cells(i + 1, 4).value = 1 Then ViandeSC(i) = True
+                If wsExcel.Cells(i + 1, 4).Value = 1 Then ViandeSC(i) = True
                 ViandeSV(i) = False                 'SV = Sans Viande = vegan
-                If wsExcel.Cells(i + 1, 5).value = 1 Then ViandeSV(i) = True
+                If wsExcel.Cells(i + 1, 5).Value = 1 Then ViandeSV(i) = True
                 ResteQuant(i) = Quant(i)            'initialise le Reste à la quantité initiale
-                CPViande = wsExcel.Cells(i + 1, 6).value
+                CPViande = wsExcel.Cells(i + 1, 6).Value
                 PTotViande += Poids(i) * Quant(i)       'cumul du poids*quantité avec le total
             Next
         End If
@@ -316,11 +308,8 @@ Module Program
             Exit Sub
         End If
         wsExcel = wbExcel.Worksheets("PREPARATIONS")
-        wsExcel.Activate()
 
-        wsExcel.Cells(1, 100).value = "=COUNTA(C[-99])"
-        NbPreparations = wsExcel.Cells(1, 100).value - 1
-        wsExcel.Range("A1").Select()
+        NbPreparations = GetNonEmptyRows() - 1
 
         If NbPreparations > MaxDenrees Then
             Call Reporting("PREPARATIONS", "ARRET", "Nombre de preparations dépasse la dimension > " & MaxDenrees, "RAPPORT")
@@ -340,8 +329,8 @@ Module Program
         QuantTotPrepa = 0
         If NbPreparations > 0 Then
             For i = 1 To NbPreparations
-                Preparation(i) = wsExcel.Cells(i + 1, 1).value
-                TestPrepa = wsExcel.Cells(i + 1, 2).value
+                Preparation(i) = wsExcel.Cells(i + 1, 1).Value
+                TestPrepa = wsExcel.Cells(i + 1, 2).Value
                 TestPrepa = TestPrepa.Substring(0, 1)
                 TestPrepa = TestPrepa.ToUpper()
                 TaillePrepa(i) = TestPrepa
@@ -357,9 +346,9 @@ Module Program
                         Call Reporting("PREPARATIONS", "ALERTE", TexteMsg, "PREPARATIONS")
                         NbErreur += 1
                 End Select
-                PoidsTest = wsExcel.Cells(i + 1, 3).value
-                If VarType(wsExcel.Cells(i + 1, 3).value) = 5 Then
-                    QuantPrepa(i) = wsExcel.Cells(i + 1, 3).value
+                PoidsTest = wsExcel.Cells(i + 1, 3).Value
+                If VarType(wsExcel.Cells(i + 1, 3).Value) = 5 Then
+                    QuantPrepa(i) = wsExcel.Cells(i + 1, 3).Value
                     QuantTotPrepa += QuantPrepa(i)
                     PTotPrepa += QuantPrepa(i) * PoidsPrepa(i)
                 Else
@@ -368,11 +357,11 @@ Module Program
                     NbErreur += 1
                 End If
 
-                wsExcel.Cells(i + 1, 8) = PoidsPrepa(i)
+                wsExcel.Cells(i + 1, 8).Value = PoidsPrepa(i)
                 PrepaSC(i) = False
-                If wsExcel.Cells(i + 1, 4).value = 1 Then PrepaSC(i) = True
+                If wsExcel.Cells(i + 1, 4).Value = 1 Then PrepaSC(i) = True
                 PrepaSV(i) = False
-                If wsExcel.Cells(i + 1, 5).value = 1 Then PrepaSV(i) = True
+                If wsExcel.Cells(i + 1, 5).Value = 1 Then PrepaSV(i) = True
 
             Next i
         End If
@@ -387,11 +376,8 @@ Module Program
             Exit Sub
         End If
         wsExcel = wbExcel.Worksheets("SALADES")
-        wsExcel.Activate()
 
-        wsExcel.Cells(1, 100).value = "=COUNTA(C[-99])"
-        NbSalades = wsExcel.Cells(1, 100).value - 1
-        wsExcel.Range("A1").Select()
+        NbSalades = GetNonEmptyRows() - 1
 
         If NbSalades > MaxDenrees Then
             Call Reporting("SALADES", "ARRET", "Nombre de salades dépasse la dimension > " & MaxDenrees, "SALADES")
@@ -410,10 +396,10 @@ Module Program
         PTotSalad = 0
         QuantTotSalad = 0
         If NbSalades > 0 Then
-            wsExcel.Cells(1, 8).value = "Eqv Poids"
+            wsExcel.Cells(1, 8).Value = "Eqv Poids"
             For i = 1 To NbSalades
-                Salade(i) = wsExcel.Cells(i + 1, 1).value
-                TestPrepa = wsExcel.Cells(i + 1, 2).value
+                Salade(i) = wsExcel.Cells(i + 1, 1).Value
+                TestPrepa = wsExcel.Cells(i + 1, 2).Value
                 TestPrepa = TestPrepa.Substring(0, 1)
                 TestPrepa = TestPrepa.ToUpper()
                 TailleSalade(i) = TestPrepa
@@ -429,9 +415,9 @@ Module Program
                         Call Reporting("SALADES", "ALERTE", TexteMsg, "SALADES")
                         NbErreur += 1
                 End Select
-                PoidsTest = wsExcel.Cells(i + 1, 3).value
-                If VarType(wsExcel.Cells(i + 1, 3).value) = 5 Then
-                    QuantSalade(i) = wsExcel.Cells(i + 1, 3).value
+                PoidsTest = wsExcel.Cells(i + 1, 3).Value
+                If VarType(wsExcel.Cells(i + 1, 3).Value) = 5 Then
+                    QuantSalade(i) = wsExcel.Cells(i + 1, 3).Value
                     QuantTotSalad += QuantSalade(i)
                     PTotSalad += QuantSalade(i) * PoidsSalade(i)
                 Else
@@ -440,11 +426,11 @@ Module Program
                     NbErreur += 1
                 End If
 
-                wsExcel.Cells(i + 1, 8) = PoidsSalade(i)
+                wsExcel.Cells(i + 1, 8).Value = PoidsSalade(i)
                 SaladeSC(i) = False
-                If wsExcel.Cells(i + 1, 4).value = 1 Then SaladeSC(i) = True
+                If wsExcel.Cells(i + 1, 4).Value = 1 Then SaladeSC(i) = True
                 SaladeSV(i) = False
-                If wsExcel.Cells(i + 1, 5).value = 1 Then SaladeSV(i) = True
+                If wsExcel.Cells(i + 1, 5).Value = 1 Then SaladeSV(i) = True
 
             Next i
         End If
@@ -458,11 +444,8 @@ Module Program
             Exit Sub
         End If
         wsExcel = wbExcel.Worksheets("LAITAGES")
-        wsExcel.Activate()
 
-        wsExcel.Cells(1, 100).value = "=COUNTA(C[-99])"
-        NbLaitages = wsExcel.Cells(1, 100).value - 1
-        wsExcel.Range("A1").Select()
+        NbLaitages = GetNonEmptyRows() - 1
 
         If NbLaitages > MaxDenrees Then
             Call Reporting("LAITAGES", "ARRET", "Nombre de laitages dépasse la dimension > " & MaxDenrees, "RAPPORT")
@@ -484,26 +467,26 @@ Module Program
         If NbLaitages > 0 Then
             For i = 1 To NbLaitages
 
-                Laitage(i) = wsExcel.Cells(i + 1, 1).value
-                PoidsTest = wsExcel.Cells(i + 1, 2).value
-                If VarType(wsExcel.Cells(i + 1, 2).value) = 5 Then
-                    QuantLait(i) = wsExcel.Cells(i + 1, 2).value
+                Laitage(i) = wsExcel.Cells(i + 1, 1).Value
+                PoidsTest = wsExcel.Cells(i + 1, 2).Value
+                If VarType(wsExcel.Cells(i + 1, 2).Value) = 5 Then
+                    QuantLait(i) = wsExcel.Cells(i + 1, 2).Value
                 Else
                     TexteMsg = "Quantité " & PoidsTest & "  à la ligne " & i + 1 & " n'est pas un nombre!"
                     Call Reporting("LAITAGES", "ALERTE", TexteMsg, "LAITAGES")
                     NbErreur += 1
                 End If
 
-                TestPrepa = wsExcel.Cells(i + 1, 3).value
+                TestPrepa = wsExcel.Cells(i + 1, 3).Value
                 TestPrepa = TestPrepa.ToUpper()
                 CatLait(i) = TestPrepa
-                Equiv(i) = wsExcel.Cells(i + 1, 4).value
+                Equiv(i) = wsExcel.Cells(i + 1, 4).Value
                 If CatLait(i) = "ZEU" Then
                     PtotZeu += QuantLait(i) * Equiv(i)
                 Else
                     PtotLait += QuantLait(i) * Equiv(i)
                 End If
-                CPLait = wsExcel.Cells(i + 1, 5).value
+                CPLait = wsExcel.Cells(i + 1, 5).Value
 
             Next i
         End If
@@ -517,11 +500,8 @@ Module Program
             Exit Sub
         End If
         wsExcel = wbExcel.Worksheets("FAMILLES")
-        wsExcel.Activate()
 
-        wsExcel.Cells(1, 100).value = "=COUNTA(C[-99])"
-        NbFamilles = wsExcel.Cells(1, 100).value - 1
-        wsExcel.Range("A1").Select()
+        NbFamilles = GetNonEmptyRows() - 1
 
         If NbFamilles > MaxFamilles Then
             Call Reporting("FAMILLES", "ARRET", "Nombre de laitages dépasse la dimension > " & MaxFamilles, "RAPPORT")
@@ -529,16 +509,16 @@ Module Program
             Exit Sub
         End If
 
-        wsExcel.Cells(1, 8) = "Test SCSV"
-        wsExcel.Cells(1, 10) = "Random"
+        wsExcel.Cells(1, 8).Value = "Test SCSV"
+        wsExcel.Cells(1, 10).Value = "Random"
 
         For i = 1 To NbFamilles
             ' concaténation du test SC et du test SV en colonne 8 (H) (pour effectuer le tri sur 3 colonnes maxi)
-            wsExcel.Cells(i + 1, 8).value = wsExcel.Cells(i + 1, 7).value * 10 + wsExcel.Cells(i + 1, 6).value
+            wsExcel.Cells(i + 1, 8).Value = wsExcel.Cells(i + 1, 7).Value * 10 + wsExcel.Cells(i + 1, 6).Value
             ' attribue un ordre aléatoire à chaque famille 
-            wsExcel.Cells(i + 1, 10).value = A1.Next(NbFamilles)
+            wsExcel.Cells(i + 1, 10).Value = A1.Next(NbFamilles)
             ' calcul le nbre de bénéficiaires: une part par adulte et une demi-part par enfant, arrondi à l'unité sup
-            wsExcel.Cells(i + 1, 5).value = Math.Round(wsExcel.Cells(i + 1, 3).value + 0.51 * wsExcel.Cells(i + 1, 4).value)
+            wsExcel.Cells(i + 1, 5).Value = Math.Round(wsExcel.Cells(i + 1, 3).Value + 0.51 * wsExcel.Cells(i + 1, 4).Value)
         Next
 
         Col1 = "H"
@@ -551,14 +531,14 @@ Module Program
 
         NbTotViande = 0
         For i = 1 To NbFamilles
-            NumFamille(i) = wsExcel.Cells(i + 1, 1).value
-            NomFamille(i) = wsExcel.Cells(i + 1, 2).value
-            NBenef(i) = wsExcel.Cells(i + 1, 5).value
+            NumFamille(i) = wsExcel.Cells(i + 1, 1).Value
+            NomFamille(i) = wsExcel.Cells(i + 1, 2).Value
+            NBenef(i) = wsExcel.Cells(i + 1, 5).Value
             SansCochon(i) = False
             SansViande(i) = False
-            If wsExcel.Cells(i + 1, 6).value = 1 Then SansCochon(i) = True
-            If wsExcel.Cells(i + 1, 7).value = 1 Then SansViande(i) = True
-            TestSCSV(i) = wsExcel.Cells(i + 1, 8).value
+            If wsExcel.Cells(i + 1, 6).Value = 1 Then SansCochon(i) = True
+            If wsExcel.Cells(i + 1, 7).Value = 1 Then SansViande(i) = True
+            TestSCSV(i) = wsExcel.Cells(i + 1, 8).Value
             NbTotViande += NBenef(i)
             Panier(i) = 0
         Next
@@ -579,39 +559,36 @@ Module Program
         '*********************************************************
 
         If FeuilleExiste("RESULTATS") = True Then
-            appExcel.Application.DisplayAlerts = False
-            wbExcel.Worksheets("RESULTATS").delete()        'supprime la feuille avant de commencer
-            appExcel.DisplayAlerts = True
+            wbExcel.Worksheets.Delete("RESULTATS") 'supprime la feuille avant de commencer
         End If
-        wsExcel = wbExcel.Worksheets.Add()                  'ajoute une nouvelle feuille
+        wsExcel = wbExcel.Worksheets.Add("RESULTATS")                  'ajoute une nouvelle feuille
         wsExcel.Name = "RESULTATS"
 
-
-        wsExcel.Cells(1, 1).value = "N° CAISSE"
-        wsExcel.Cells(1, 2).value = "FAMILLE"
-        wsExcel.Cells(1, 3).value = "Bénéficiaires"
-        wsExcel.Cells(1, 4).value = "Sans Cochon"
-        wsExcel.Cells(1, 5).value = "Sans Viande"
+        wsExcel.Cells(1, 1).Value = "N° CAISSE"
+        wsExcel.Cells(1, 2).Value = "FAMILLE"
+        wsExcel.Cells(1, 3).Value = "Bénéficiaires"
+        wsExcel.Cells(1, 4).Value = "Sans Cochon"
+        wsExcel.Cells(1, 5).Value = "Sans Viande"
 
         For i = 1 To NbFamilles
-            wsExcel.Cells(i + 1, 1).value = NumFamille(i)
-            wsExcel.Cells(i + 1, 2).value = NomFamille(i)
-            wsExcel.Cells(i + 1, 3).value = NBenef(i)
-            If SansCochon(i) Then wsExcel.Cells(i + 1, 4).value = "OUI"
-            If SansViande(i) Then wsExcel.Cells(i + 1, 5).value = "OUI"
+            wsExcel.Cells(i + 1, 1).Value = NumFamille(i)
+            wsExcel.Cells(i + 1, 2).Value = NomFamille(i)
+            wsExcel.Cells(i + 1, 3).Value = NBenef(i)
+            If SansCochon(i) Then wsExcel.Cells(i + 1, 4).Value = "OUI"
+            If SansViande(i) Then wsExcel.Cells(i + 1, 5).Value = "OUI"
         Next
 
         Decal = 5
 
         If NbDenrees > 0 Then
             For i = 1 To NbDenrees
-                wsExcel.Cells(1, i + Decal).value = Description(i) & " " & Poids(i) & " Gr (" & Quant(i) & ")"
+                wsExcel.Cells(1, i + Decal).Value = Description(i) & " " & Poids(i) & " Gr (" & Quant(i) & ")"
             Next
-            wsExcel.Cells(1, NbDenrees + 6).value = "Poids attribué"
-            wsExcel.Cells(1, NbDenrees + 7).value = "Poids théorique"
-            wsExcel.Cells(1, NbDenrees + 8).value = "Ecart"
-            wsExcel.Cells(NbFamilles + 2, 1).value = "SOMME"
-            wsExcel.Cells(NbFamilles + 2, 2).value = "SOMME"
+            wsExcel.Cells(1, NbDenrees + 6).Value = "Poids attribué"
+            wsExcel.Cells(1, NbDenrees + 7).Value = "Poids théorique"
+            wsExcel.Cells(1, NbDenrees + 8).Value = "Ecart"
+            wsExcel.Cells(NbFamilles + 2, 1).Value = "SOMME"
+            wsExcel.Cells(NbFamilles + 2, 2).Value = "SOMME"
 
 
             '***************************************************************
@@ -630,22 +607,22 @@ Module Program
             'impression des résultats
 
             For i = 1 To NbFamilles
-                wsExcel.Cells(i + 1, NbDenrees + 6).value = Panier(i)
-                wsExcel.Cells(i + 1, NbDenrees + 7).value = PoidsTheo(i)
-                wsExcel.Cells(i + 1, NbDenrees + 8).value = Panier(i) - PoidsTheo(i)
+                wsExcel.Cells(i + 1, NbDenrees + 6).Value = Panier(i)
+                wsExcel.Cells(i + 1, NbDenrees + 7).Value = PoidsTheo(i)
+                wsExcel.Cells(i + 1, NbDenrees + 8).Value = Panier(i) - PoidsTheo(i)
             Next
 
             For j = 1 To NbDenrees
-                wsExcel.Cells(NbFamilles + 2, j + Decal).value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
+                wsExcel.Cells(NbFamilles + 2, j + Decal).Value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
             Next
 
-            wsExcel.Cells(NbFamilles + 2, NbDenrees + 7).value = PTotViande
+            wsExcel.Cells(NbFamilles + 2, NbDenrees + 7).Value = PTotViande
 
             wsExcel = wbExcel.Worksheets("FAMILLES")
-            wsExcel.Cells(1, 9) = "ECART"
+            wsExcel.Cells(1, 9).Value = "ECART"
             ' reporte l'écart entre la dotation théorique et réalisé pour prioriser l'attribution des plats préparés
             For i = 1 To NbFamilles
-                wsExcel.Cells(i + 1, 9) = Panier(i) - PoidsTheo(i)
+                wsExcel.Cells(i + 1, 9).Value = Panier(i) - PoidsTheo(i)
             Next
 
         End If      'Fin du test s'il n'y a pas de viande
@@ -674,15 +651,15 @@ Module Program
 
         'on relit les familles après le tri
         For i = 1 To NbFamilles
-            NumFamille(i) = wsExcel.Cells(i + 1, 1).value
-            NomFamille(i) = wsExcel.Cells(i + 1, 2).value
-            NBenef(i) = wsExcel.Cells(i + 1, 5).value
+            NumFamille(i) = wsExcel.Cells(i + 1, 1).Value
+            NomFamille(i) = wsExcel.Cells(i + 1, 2).Value
+            NBenef(i) = wsExcel.Cells(i + 1, 5).Value
             SansCochon(i) = False
             SansViande(i) = False
-            If wsExcel.Cells(i + 1, 6).value = 1 Then SansCochon(i) = True
-            If wsExcel.Cells(i + 1, 7).value = 1 Then SansViande(i) = True
-            TestSCSV(i) = wsExcel.Cells(i + 1, 8).value
-            Panier(i) = wsExcel.Cells(i + 1, 9).value
+            If wsExcel.Cells(i + 1, 6).Value = 1 Then SansCochon(i) = True
+            If wsExcel.Cells(i + 1, 7).Value = 1 Then SansViande(i) = True
+            TestSCSV(i) = wsExcel.Cells(i + 1, 8).Value
+            Panier(i) = wsExcel.Cells(i + 1, 9).Value
         Next
 
         ' tri des résultats, de la même façon
@@ -713,9 +690,9 @@ Module Program
             Next
             'en tête de l'onglet RESULTATS
             For i = 1 To NbPreparations
-                wsExcel.Cells(1, i + Decal).value = Preparation(i) & " " & TaillePrepa(i) & " (" & QuantPrepa(i) & ")"
+                wsExcel.Cells(1, i + Decal).Value = Preparation(i) & " " & TaillePrepa(i) & " (" & QuantPrepa(i) & ")"
             Next
-            wsExcel.Cells(1, NbPreparations + Decal + 1).value = "Nbre attribué"
+            wsExcel.Cells(1, NbPreparations + Decal + 1).Value = "Nbre attribué"
 
             '*******************************************************************
             ' Attribution des Plats Preparés
@@ -727,17 +704,17 @@ Module Program
 
             'total de chaque plat en bas de tableau 
             For j = 1 To NbPreparations
-                wsExcel.Cells(NbFamilles + 2, j + Decal).value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
+                wsExcel.Cells(NbFamilles + 2, j + Decal).Value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
             Next
             'report nbre de plats preparés par famille
             For i = 1 To NbFamilles
-                wsExcel.Cells(i + 1, Decal + NbPreparations + 1).value = "=SUM(RC[-" & NbPreparations & "]:RC[-1])"
+                wsExcel.Cells(i + 1, Decal + NbPreparations + 1).Value = "=SUM(RC[-" & NbPreparations & "]:RC[-1])"
             Next
 
             wsExcel = wbExcel.Worksheets("FAMILLES")
-            wsExcel.Cells(1, 9).value = "Ecart"
+            wsExcel.Cells(1, 9).Value = "Ecart"
             For i = 1 To NbFamilles
-                wsExcel.Cells(i + 1, 9).value = Panier(i) - PoidsTheo(i)
+                wsExcel.Cells(i + 1, 9).Value = Panier(i) - PoidsTheo(i)
             Next
         End If
 
@@ -751,7 +728,7 @@ Module Program
 
             wsExcel = wbExcel.Worksheets("FAMILLES")
             For i = 1 To NbFamilles
-                Panier(i) = wsExcel.Cells(i + 1, 7).value
+                Panier(i) = wsExcel.Cells(i + 1, 7).Value
                 PoidsTheo(i) = PTotSalad * NBenef(i) / NbTotViande
             Next
 
@@ -760,10 +737,10 @@ Module Program
 
             For i = 1 To NbSalades
                 ResteQuant(i) = QuantSalade(i)
-                wsExcel.Cells(1, i + Decal).value = Salade(i) & " " & TailleSalade(i) & " (" & QuantSalade(i) & ")"
+                wsExcel.Cells(1, i + Decal).Value = Salade(i) & " " & TailleSalade(i) & " (" & QuantSalade(i) & ")"
                 QuantTotSalad += QuantSalade(i)
             Next
-            wsExcel.Cells(1, Decal + NbSalades + 1).value = "Nbre Attribué"
+            wsExcel.Cells(1, Decal + NbSalades + 1).Value = "Nbre Attribué"
 
             '***********************************************************************
             ' Attribution des SALADES
@@ -774,11 +751,11 @@ Module Program
             Call Attribution3(NbSalades, ResteQuant, PoidsSalade, SaladeSC, SaladeSV, ParamEcart)
 
             For j = 1 To NbSalades
-                wsExcel.Cells(NbFamilles + 2, j + Decal).value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
+                wsExcel.Cells(NbFamilles + 2, j + Decal).Value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
             Next
 
             For i = 1 To NbFamilles
-                wsExcel.Cells(i + 1, Decal + NbSalades + 1).value = "=SUM(RC[-" & NbSalades & "]:RC[-1])"
+                wsExcel.Cells(i + 1, Decal + NbSalades + 1).Value = "=SUM(RC[-" & NbSalades & "]:RC[-1])"
             Next
 
         End If
@@ -800,15 +777,15 @@ Module Program
 
         'on relit les familles après le tri
         For i = 1 To NbFamilles
-            NumFamille(i) = wsExcel.Cells(i + 1, 1).value
-            NomFamille(i) = wsExcel.Cells(i + 1, 2).value
-            NBenef(i) = wsExcel.Cells(i + 1, 5).value
+            NumFamille(i) = wsExcel.Cells(i + 1, 1).Value
+            NomFamille(i) = wsExcel.Cells(i + 1, 2).Value
+            NBenef(i) = wsExcel.Cells(i + 1, 5).Value
 
             Panier(i) = 0
             PanierZeu(i) = 0
         Next
 
-        wsExcel.Range("H1:J300").Clear()
+        wsExcel.Cells("H1:J300").Clear()
 
         ' tri des résultats, de la même façon
         wsExcel = wbExcel.Worksheets("RESULTATS")
@@ -843,10 +820,10 @@ Module Program
             If NbSalades > 0 Then Decal += NbSalades + 1
 
             For i = 1 To NbLaitages
-                wsExcel.Cells(1, i + Decal).value = Laitage(i) & "_EQV" & Equiv(i) & " (" & QuantLait(i) & ")"
+                wsExcel.Cells(1, i + Decal).Value = Laitage(i) & "_EQV" & Equiv(i) & " (" & QuantLait(i) & ")"
             Next
-            wsExcel.Cells(1, NbLaitages + Decal + 1).value = "Nbre Laitages"
-            wsExcel.Cells(1, NbLaitages + Decal + 2).value = "Nbre d'oeufs"
+            wsExcel.Cells(1, NbLaitages + Decal + 1).Value = "Nbre Laitages"
+            wsExcel.Cells(1, NbLaitages + Decal + 2).Value = "Nbre d'oeufs"
 
             '********************************************************************
             ' repartition des laitages
@@ -861,7 +838,7 @@ Module Program
                                 If ResteQuant(j) > 0 Then
                                     TestPanier = Panier(i) + Equiv(j)
                                     If TestPanier < PoidsTheo(i) Then
-                                        wsExcel.Cells(i + 1, Decal + j).value += 1
+                                        wsExcel.Cells(i + 1, Decal + j).Value += 1
                                         Panier(i) += Equiv(j)
                                         ResteQuant(j) -= 1
                                     End If
@@ -871,7 +848,7 @@ Module Program
                                     If ResteQuant(j) > 2 Then
                                         TestPanier = 2
                                         Do While TestPanier < CibleLait
-                                            wsExcel.Cells(i + 1, Decal + j).value += 2
+                                            wsExcel.Cells(i + 1, Decal + j).Value += 2
                                             Panier(i) += 2
                                             TestPanier += 2
                                             ResteQuant(j) -= 2
@@ -892,7 +869,7 @@ Module Program
                     For j = 1 To NbLaitages
                         If Equiv(j) >= 1 And ResteQuant(j) > 0 And Saut = False _
                             And CatLait(j) <> "BCF" And CatLait(j) <> "ZEU" Then
-                            wsExcel.Cells(i + 1, Decal + j).value += 1
+                            wsExcel.Cells(i + 1, Decal + j).Value += 1
                             Panier(i) += Equiv(j)
                             ResteQuant(j) -= 1
                             Saut = True
@@ -914,7 +891,7 @@ Module Program
                                 NumeMaxi = i
                             End If
                         Next i
-                        wsExcel.Cells(NumeMaxi + 1, Decal + j).value += 2
+                        wsExcel.Cells(NumeMaxi + 1, Decal + j).Value += 2
                         Panier(NumeMaxi) += Equiv(j) * 2
                         ResteQuant(j) -= 2
                     End While
@@ -929,7 +906,7 @@ Module Program
                         For i = 1 To NbFamilles
                             Ecart = Panier(i) - PoidsTheo(i)
                             If Ecart < 0 And Saut = False And NBenef(i) > 0 Then
-                                wsExcel.Cells(NumeMaxi + 1, Decal + j).value += 1
+                                wsExcel.Cells(NumeMaxi + 1, Decal + j).Value += 1
                                 Panier(NumeMaxi) += Equiv(j)
                                 ResteQuant(j) -= 1
                                 Saut = True
@@ -950,12 +927,12 @@ Module Program
                                 If Saut = False Then
                                     TestPanier = PanierZeu(i) + Equiv(j)
                                     If TestPanier < PoidsTheozeu(i) Then
-                                        wsExcel.Cells(i + 1, Decal + j).value += 1
+                                        wsExcel.Cells(i + 1, Decal + j).Value += 1
                                         PanierZeu(i) += Equiv(j)
                                         ResteQuant(j) -= 1
                                     Else
                                         If Equiv(j) > PoidsTheozeu(i) Then
-                                            wsExcel.Cells(i + 1, Decal + j).value += 1
+                                            wsExcel.Cells(i + 1, Decal + j).Value += 1
                                             PanierZeu(i) += Equiv(j)
                                             ResteQuant(j) -= 1
                                             Saut = True
@@ -976,7 +953,7 @@ Module Program
                         i += 1
                         If i > NbFamilles Then i = 1
                         If NBenef(i) > 0 Then
-                            wsExcel.Cells(i + 1, Decal + j).value += 1
+                            wsExcel.Cells(i + 1, Decal + j).Value += 1
                             If CatLait(j) = "ZEU" Then PanierZeu(i) += Equiv(j)
                             ResteQuant(j) -= 1
                         End If
@@ -990,16 +967,16 @@ Module Program
                 SommeZeu = 0
                 For j = 1 To NbLaitages
                     If CatLait(j) = "ZEU" Then
-                        SommeZeu += wsExcel.Cells(i + 1, Decal + j).value
+                        SommeZeu += wsExcel.Cells(i + 1, Decal + j).Value
                     Else
-                        SommeLait += wsExcel.Cells(i + 1, Decal + j).value
+                        SommeLait += wsExcel.Cells(i + 1, Decal + j).Value
                     End If
                 Next
-                wsExcel.Cells(i + 1, Decal + NbLaitages + 1).value = SommeLait
-                wsExcel.Cells(i + 1, Decal + NbLaitages + 2).value = PanierZeu(i)
+                wsExcel.Cells(i + 1, Decal + NbLaitages + 1).Value = SommeLait
+                wsExcel.Cells(i + 1, Decal + NbLaitages + 2).Value = PanierZeu(i)
             Next
             For j = 1 To NbLaitages
-                wsExcel.Cells(NbFamilles + 2, j + Decal).value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
+                wsExcel.Cells(NbFamilles + 2, j + Decal).Value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
             Next
             Decal += NbLaitages + 2
         End If
@@ -1008,25 +985,22 @@ Module Program
         'Formatage onglet DIVERS
         '**********************************************************************
         If FeuilleExiste("DIVERS") = False Then
-            wsExcel = wbExcel.Worksheets.Add()
+            wsExcel = wbExcel.Worksheets.Add("DIVERS")
             wsExcel.Name = "DIVERS"
             NbDivers = 0
         Else
             wsExcel = wbExcel.Worksheets("DIVERS")
-            wsExcel.Activate()
-            wsExcel.Cells(1, 100).value = "=COUNTA(C[-99])"
-            NbDivers = wsExcel.Cells(1, 100).value - 1
-            wsExcel.Range("A1").Select()
+            NbDivers = GetNonEmptyRows() - 1
         End If
 
         If NbDivers > 0 Then
             For i = 1 To NbDivers
-                Divers(i) = wsExcel.Cells(i + 1, 1).value
+                Divers(i) = wsExcel.Cells(i + 1, 1).Value
             Next
             wsExcel = wbExcel.Worksheets("RESULTATS")
             For i = 1 To NbDivers
-                wsExcel.Cells(1, i + Decal).value = Divers(i)
-                wsExcel.Cells(NbFamilles + 2, i + Decal).value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
+                wsExcel.Cells(1, i + Decal).Value = Divers(i)
+                wsExcel.Cells(NbFamilles + 2, i + Decal).Value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
             Next i
         End If
 
@@ -1036,10 +1010,14 @@ Module Program
 
         wsExcel = wbExcel.Worksheets("RESULTATS")
         'mise en gras colonnes familles
-        wsExcel.Columns("A:E").Font.Bold = True
-        wsExcel.Columns("A").HorizontalAlignment = -4108
-        wsExcel.Columns("C:E").ColumnWidth = 4
-        wsExcel.Columns("C:E").HorizontalAlignment = -4108
+        wsExcel.Columns(1, 5).Style.Font.Bold = True
+        wsExcel.Columns(1).Style.HorizontalAlignment = -4108
+        For Each c In {3, 4, 5}
+            With wsExcel.Column(c)
+                .Width = 4
+                .Style.HorizontalAlignment = -4108
+            End With
+        Next
 
         'Première ligne
         Decal = 5
@@ -1050,34 +1028,40 @@ Module Program
         If NbDivers > 0 Then Decal += NbDivers
 
         AlphaColTri = AlphaCol(Decal)
-        With wsExcel.Range("C1:" & AlphaColTri & "1")
+        With wsExcel.Cells("C1:" & AlphaColTri & "1").Style
             .HorizontalAlignment = -4108
-            .Orientation = 90
+            .TextRotation = 90
             .Font.Bold = True
-            .Borders(XlBordersIndex.xlEdgeBottom).LineStyle = XlLineStyle.xlContinuous
+            .Border.Bottom.Style = ExcelBorderStyle.Medium
         End With
 
         i = 0
         While i < NbFamilles
             i += 2
-            wsExcel.Range("A" & i & ":" & AlphaColTri & i).Interior.ColorIndex = 19
+            With wsExcel.Cells("A" & i & ":" & AlphaColTri & i).Style
+                .Fill.PatternType = ExcelFillStyle.Solid
+                .Fill.BackgroundColor.Indexed = 19
+            End With
         End While
 
         Decal = 5
         If NbDenrees > 0 Then
             AlphaColTri = AlphaCol(Decal + NbDenrees)
-            wsExcel.Columns("F:" & AlphaColTri).ColumnWidth = 4
-            wsExcel.Columns("F:" & AlphaColTri).HorizontalAlignment = -4108
+            wsExcel.Columns("F:" & AlphaColTri).Width = 4
+            wsExcel.Columns("F:" & AlphaColTri).Style.HorizontalAlignment = -4108
             Call TraitsVerticaux("A", AlphaColTri, NbFamilles + 2)
 
             AlphaColTri = AlphaCol(Decal + NbDenrees + 1)
             AlphaColTri2 = AlphaCol(Decal + NbDenrees + 3)
             With wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2)
-                .ColumnWidth = 6
-                .font.bold = True
-                .numberformat = "0.0"
+                .Width = 6
+                .Style.Font.Bold = True
+                .Style.Numberformat.Format = "0.0"
             End With
-            wsExcel.Range(AlphaColTri & 1 & ":" & AlphaColTri2 & NbFamilles + 2).Interior.ColorIndex = 40
+            With wsExcel.Cells(AlphaColTri & 1 & ":" & AlphaColTri2 & NbFamilles + 2).Style
+                .Fill.PatternType = ExcelFillStyle.Solid
+                .Fill.BackgroundColor.Indexed = 40
+            End With
 
             Call Bordure(AlphaColTri, AlphaColTri2, NbFamilles + 2)
             Decal += NbDenrees + 3
@@ -1086,17 +1070,20 @@ Module Program
         If NbPreparations > 0 Then
             AlphaColTri = AlphaCol(Decal + 1)
             AlphaColTri2 = AlphaCol(Decal + NbPreparations)
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).ColumnWidth = 4
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).HorizontalAlignment = -4108
+            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Width = 4
+            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Style.HorizontalAlignment = -4108
             Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
 
             AlphaColTri = AlphaCol(Decal + NbPreparations + 1)
             With wsExcel.Columns(AlphaColTri & ":" & AlphaColTri)
-                .ColumnWidth = 6
-                .font.bold = True
-                .HorizontalAlignment = -4108
+                .Width = 6
+                .Style.Font.Bold = True
+                .Style.HorizontalAlignment = -4108
             End With
-            wsExcel.Range(AlphaColTri & 1 & ":" & AlphaColTri & NbFamilles + 2).Interior.ColorIndex = 40
+            With wsExcel.Cells(AlphaColTri & 1 & ":" & AlphaColTri & NbFamilles + 2).Style
+                .Fill.PatternType = ExcelFillStyle.Solid
+                .Fill.BackgroundColor.Indexed = 40
+            End With
 
             Call Bordure(AlphaColTri, AlphaColTri, NbFamilles + 2)
             Decal += NbPreparations + 1
@@ -1104,17 +1091,20 @@ Module Program
         If NbSalades > 0 Then
             AlphaColTri = AlphaCol(Decal + 1)
             AlphaColTri2 = AlphaCol(Decal + NbSalades)
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).ColumnWidth = 4
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).HorizontalAlignment = -4108
+            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Width = 4
+            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Style.HorizontalAlignment = -4108
             Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
 
             AlphaColTri = AlphaCol(Decal + NbSalades + 1)
             With wsExcel.Columns(AlphaColTri & ":" & AlphaColTri)
-                .ColumnWidth = 6
-                .font.bold = True
-                .HorizontalAlignment = -4108
+                .Width = 6
+                .Style.Font.Bold = True
+                .Style.HorizontalAlignment = -4108
             End With
-            wsExcel.Range(AlphaColTri & 1 & ":" & AlphaColTri & NbFamilles + 2).Interior.ColorIndex = 40
+            With wsExcel.Cells(AlphaColTri & 1 & ":" & AlphaColTri & NbFamilles + 2).Style
+                .Fill.PatternType = ExcelFillStyle.Solid
+                .Fill.BackgroundColor.Indexed = 40
+            End With
 
             Call Bordure(AlphaColTri, AlphaColTri, NbFamilles + 2)
             Decal += NbSalades + 1
@@ -1122,26 +1112,29 @@ Module Program
         If NbLaitages > 0 Then
             AlphaColTri = AlphaCol(Decal + 1)
             AlphaColTri2 = AlphaCol(Decal + NbLaitages)
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).ColumnWidth = 4
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).HorizontalAlignment = -4108
+            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Width = 4
+            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Style.HorizontalAlignment = -4108
             Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
 
             AlphaColTri = AlphaCol(Decal + NbLaitages + 1)
             AlphaColTri2 = AlphaCol(Decal + NbLaitages + 2)
             With wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2)
-                .ColumnWidth = 6
-                .font.bold = True
-                .HorizontalAlignment = -4108
+                .Width = 6
+                .Style.Font.Bold = True
+                .Style.HorizontalAlignment = -4108
             End With
-            wsExcel.Range(AlphaColTri & 1 & ":" & AlphaColTri2 & NbFamilles + 2).Interior.ColorIndex = 40
+            With wsExcel.Cells(AlphaColTri & 1 & ":" & AlphaColTri2 & NbFamilles + 2).Style
+                .Fill.PatternType = ExcelFillStyle.Solid
+                .Fill.BackgroundColor.Indexed = 40
+            End With
             Call Bordure(AlphaColTri, AlphaColTri, NbFamilles + 2)
             Decal += NbLaitages + 1
         End If
         If NbDivers > 0 Then
             AlphaColTri = AlphaCol(Decal + 1)
             AlphaColTri2 = AlphaCol(Decal + NbDivers + 1)
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).ColumnWidth = 4
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).HorizontalAlignment = -4108
+            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Width = 4
+            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Style.HorizontalAlignment = -4108
             Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
         End If
 
@@ -1167,12 +1160,12 @@ Module Program
                         For k = 1 To Reste(j)
                             TestPanier = Reste(j) + Panier(i)
                             If TestPanier < PoidsTheo(i) Then
-                                wsExcel.Cells(i + 1, Decal + j).value += 1
+                                wsExcel.Cells(i + 1, Decal + j).Value += 1
                                 Panier(i) += Poids(j)
                                 Reste(j) -= 1
                             Else
                                 If Poids(j) > PoidsTheo(i) Then
-                                    wsExcel.Cells(i + 1, Decal + j).value += 1
+                                    wsExcel.Cells(i + 1, Decal + j).Value += 1
                                     Panier(i) += Poids(j)
                                     Reste(j) -= 1
                                     Saut = True
@@ -1201,7 +1194,7 @@ Module Program
                     If i > NbFamilles Then i = 1
                     If (SansViande(i) = False Or Testsv(j) = True) And
                        (SansCochon(i) = False Or Testsc(j) = True) And NBenef(i) > 0 Then
-                        wsExcel.Cells(i + 1, Decal + j).value += 1
+                        wsExcel.Cells(i + 1, Decal + j).Value += 1
                         Panier(i) += Poids(j)
                         Reste(j) -= 1
                     End If
@@ -1252,7 +1245,7 @@ Module Program
                 'attribution des denrées une par une
                 If (SansViande(NumeMaxi) = False Or Testsv(j) = True) And
                     (SansCochon(NumeMaxi) = False Or Testsc(j) = True) And NBenef(NumeMaxi) > 0 Then
-                    wsExcel.Cells(NumeMaxi + 1, Decal + j).value += 1
+                    wsExcel.Cells(NumeMaxi + 1, Decal + j).Value += 1
                     Panier(NumeMaxi) += Poids(j)
                     Reste(j) -= 1
                 End If
@@ -1275,7 +1268,7 @@ Module Program
                         (SansCochon(i) = False Or Testsc(j) = True) And Reste(j) > 0 Then
                         TestPanier = Poids(j) + Panier(i)
                         If TestPanier < PoidsTheo(i) Then
-                            wsExcel.Cells(i + 1, Decal + j).value += 1
+                            wsExcel.Cells(i + 1, Decal + j).Value += 1
                             Panier(i) += Poids(j)
                             Reste(j) -= 1
                         End If
@@ -1286,14 +1279,21 @@ Module Program
 
     End Sub
 
+    Public Function GetNonEmptyRows() As Integer
+        Dim total = 0
+        While wsExcel.Cells(total + 1, 1).Value <> Nothing
+            total += 1
+        End While
+        GetNonEmptyRows = total
+    End Function
+
     Public Function FeuilleExiste(FeuilleAVerifier As String) As Boolean
         'fonction qui vérifie si la "FeuilleAVerifier" existe dans le Classeur actif
 
         On Error GoTo SiErreur
         Dim Feuille
-        wbExcel.Activate()
         FeuilleExiste = False
-        For Each Feuille In wbExcel.Sheets
+        For Each Feuille In wbExcel.Worksheets
             If UCase(Feuille.Name) = UCase(FeuilleAVerifier) Then
                 FeuilleExiste = True
                 Exit Function
@@ -1310,8 +1310,17 @@ SiErreur:
         Dim h As Integer
         h = Fix((k - 1) / 26)
         If h > 0 Then AlphaCol = Chr(64 + h) & Chr(64 + k - (26 * h)) Else AlphaCol = Chr(64 + k)
-
     End Function
+
+    Public Function NumCol(col As String) As Integer
+        Dim total = 0
+        For Each c As Char In col
+            Dim num = Asc(c) - 64
+            total = total * 26 + num
+        Next
+        NumCol = total - 1
+    End Function
+
     Public Sub TriMultiple(Feuille As String, Col1 As String, Mode1 As Integer, Col2 As String, Mode2 As Integer,
                     Col3 As String, Mode3 As Integer, nbcol As Integer, nblignes As Integer)
 
@@ -1319,50 +1328,42 @@ SiErreur:
         Dim AlphaColTri As String
 
         wsExcel = wbExcel.Worksheets(Feuille)
-        wsExcel.Activate()
         h = nbcol
         AlphaColTri = AlphaCol(h)
 
-        appExcel.CutCopyMode = False
-        wsExcel.Sort.SortFields.Clear()
-        wsExcel.Sort.SortFields.Add(Key:=wsExcel.Range(Col1 & "2:" & Col1 & nblignes), Order:=Mode1)
-        If Col2 <> "" Then wsExcel.Sort.SortFields.Add(Key:=wsExcel.Range(Col2 & "2:" & Col2 & nblignes), Order:=Mode2)
-        If Col3 <> "" Then wsExcel.Sort.SortFields.Add(Key:=wsExcel.Range(Col3 & "2:" & Col3 & nblignes), Order:=Mode3)
+        Dim sortOptions = RangeSortOptions.Create()
+        sortOptions.CompareOptions = CompareOptions.OrdinalIgnoreCase
+        Dim sortOptionsC1 = sortOptions.SortBy.Column(NumCol(Col1), Mode1)
+        Dim sortOptionsC2 = If(Col2 <> "", sortOptionsC1.ThenSortBy.Column(NumCol(Col2), Mode2), sortOptionsC1)
+        Dim sortOptionsC3 = If(Col3 <> "", sortOptionsC2.ThenSortBy.Column(NumCol(Col3), Mode3), sortOptionsC2)
 
-        With wsExcel.Sort
-            .SetRange(wsExcel.Range("A1:" & AlphaColTri & nblignes))
-            .Header = XlYesNoGuess.xlYes
-            .MatchCase = False
-            .Orientation = Constants.xlTopToBottom
-            .SortMethod = XlSortMethod.xlPinYin
-            .Apply()
-        End With
-        wsExcel.Range("A1").Select()
+        wsExcel.Cells("A2:" & AlphaColTri & nblignes).Sort(sortOptions)
     End Sub
 
     Public Sub TraitsVerticaux(Alpha1 As String, Alpha2 As String, Nblignes As Integer)
-        With wsExcel.Range(Alpha1 & "1:" & Alpha2 & Nblignes).Borders(XlBordersIndex.xlInsideVertical)
-            .LineStyle = XlLineStyle.xlContinuous
-            .Weight = XlBorderWeight.xlThin
+        With wsExcel.Cells(Alpha1 & "1:" & Alpha2 & Nblignes).Style
+            '.Borders(XlBordersIndex.xlInsideVertical)
+            ' .LineStyle = XlLineStyle.xlContinuous
+            '.Weight = XlBorderWeight.xlThin
         End With
     End Sub
 
     Public Sub Bordure(Alpha1 As String, Alpha2 As String, Nblignes As Integer)
-        With wsExcel.Range(Alpha1 & "1:" & Alpha2 & Nblignes)
+        With wsExcel.Cells(Alpha1 & "1:" & Alpha2 & Nblignes).Style
             .Font.Bold = True
-            .Borders(XlBordersIndex.xlEdgeLeft).LineStyle = XlLineStyle.xlContinuous
-            .Borders(XlBordersIndex.xlEdgeTop).LineStyle = XlLineStyle.xlContinuous
-            .Borders(XlBordersIndex.xlEdgeBottom).LineStyle = XlLineStyle.xlContinuous
-            .Borders(XlBordersIndex.xlEdgeRight).LineStyle = XlLineStyle.xlContinuous
+            .Border.Left.Style = ExcelBorderStyle.Medium
+            .Border.Top.Style = ExcelBorderStyle.Medium
+            .Border.Bottom.Style = ExcelBorderStyle.Medium
+            .Border.Right.Style = ExcelBorderStyle.Medium
         End With
     End Sub
     Public Sub Reporting(Onglet As String, Criticite As String, ReportMsg As String, Retour As String)
 
         wsExcel = wbExcel.Worksheets("RAPPORT")
         nbReport += 1
-        wsExcel.Cells(nbReport, 1).value = Onglet
-        wsExcel.Cells(nbReport, 2).value = ReportMsg
-        wsExcel.Cells(nbReport, 8).value = Criticite
+        wsExcel.Cells(nbReport, 1).Value = Onglet
+        wsExcel.Cells(nbReport, 2).Value = ReportMsg
+        wsExcel.Cells(nbReport, 8).Value = Criticite
         wsExcel = wbExcel.Worksheets("" & Retour & "")
     End Sub
 
@@ -1385,25 +1386,23 @@ SiErreur:
 
 
         wsExcel = wbExcel.Worksheets("FAMILLES")
-        wsExcel.Activate()
-        NbFamilles = wsExcel.Cells(1, 100).value - 1
+        NbFamilles = GetNonEmptyRows() - 1
 
         wsExcel = wbExcel.Worksheets("VIANDES")
-        wsExcel.Activate()
-        NbDenrees = wsExcel.Cells(1, 100).value - 1
+        NbDenrees = GetNonEmptyRows() - 1
 
         NbErreur = 0
         Decal = 5
         If NbDenrees > 0 Then
             For j = 1 To NbDenrees
-                Poids(j) = wsExcel.Cells(j + 1, 2).value
+                Poids(j) = wsExcel.Cells(j + 1, 2).Value
             Next
 
             wsExcel = wbExcel.Worksheets("RESULTATS")
 
             For i = 1 To NbFamilles
                 For j = 1 To NbDenrees
-                    Cellule = wsExcel.Cells(i + 1, Decal + j).value
+                    Cellule = wsExcel.Cells(i + 1, Decal + j).Value
                     If String.IsNullOrEmpty(Cellule) = False Then
                         If IsNumeric(Cellule) Then
                             Panier(i) += Cellule * Poids(j)
@@ -1414,8 +1413,8 @@ SiErreur:
                         End If
                     End If
                 Next
-                wsExcel.Cells(i + 1, NbDenrees + 6).value = Panier(i)
-                wsExcel.Cells(i + 1, NbDenrees + 8).value = Panier(i) - wsExcel.Cells(i + 1, NbDenrees + 7).value
+                wsExcel.Cells(i + 1, NbDenrees + 6).Value = Panier(i)
+                wsExcel.Cells(i + 1, NbDenrees + 8).Value = Panier(i) - wsExcel.Cells(i + 1, NbDenrees + 7).Value
             Next
             If NbErreur > 0 Then
                 Call Colexit()
@@ -1426,18 +1425,18 @@ SiErreur:
         End If
 
         wsExcel = wbExcel.Worksheets("PREPARATIONS")
-        NbPreparations = wsExcel.Cells(1, 100).value - 1
+        NbPreparations = GetNonEmptyRows() - 1
         If NbPreparations > 0 Then Decal += NbPreparations + 1
 
         wsExcel = wbExcel.Worksheets("SALADES")
-        NbSalades = wsExcel.Cells(1, 100).value - 1
+        NbSalades = GetNonEmptyRows() - 1
         If NbSalades > 0 Then Decal += NbSalades + 1
 
         wsExcel = wbExcel.Worksheets("LAITAGES")
-        NbLaitages = wsExcel.Cells(1, 100).value - 1
+        NbLaitages = GetNonEmptyRows() - 1
         For i = 1 To NbLaitages
-            CatLait(i) = (wsExcel.Cells(i + 1, 3).value).toupper()
-            Equiv(i) = wsExcel.Cells(i + 1, 4).value
+            CatLait(i) = (wsExcel.Cells(i + 1, 3).Value).toupper()
+            Equiv(i) = wsExcel.Cells(i + 1, 4).Value
         Next
 
         wsExcel = wbExcel.Worksheets("RESULTATS")
@@ -1446,7 +1445,7 @@ SiErreur:
             SommeLait = 0
             SommeZeu = 0
             For j = 1 To NbLaitages
-                Cellule = wsExcel.Cells(i + 1, Decal + j).value
+                Cellule = wsExcel.Cells(i + 1, Decal + j).Value
                 If String.IsNullOrEmpty(Cellule) = False Then
                     If IsNumeric(Cellule) Then
                         If CatLait(j) = "ZEU" Then
@@ -1457,16 +1456,16 @@ SiErreur:
                     Else
                         wsExcel = wbExcel.Worksheets("RAPPORT")
                         nbReport += 1
-                        wsExcel.Cells(nbReport, 1).value = "RESULTATS"
-                        wsExcel.Cells(nbReport, 2).value = "Ligne " & i + 1 & " Col " & j + Decal & "  cellule " & Cellule & "  n'est pas un nombre"
-                        wsExcel.Cells(nbReport, 8).value = "ALERTE"
+                        wsExcel.Cells(nbReport, 1).Value = "RESULTATS"
+                        wsExcel.Cells(nbReport, 2).Value = "Ligne " & i + 1 & " Col " & j + Decal & "  cellule " & Cellule & "  n'est pas un nombre"
+                        wsExcel.Cells(nbReport, 8).Value = "ALERTE"
                         wsExcel = wbExcel.Worksheets("RESULTATS")
                         NbErreur += 1
                     End If
                 End If
             Next
-            wsExcel.Cells(i + 1, Decal + NbLaitages + 1).value = SommeLait
-            wsExcel.Cells(i + 1, Decal + NbLaitages + 2).value = SommeZeu
+            wsExcel.Cells(i + 1, Decal + NbLaitages + 1).Value = SommeLait
+            wsExcel.Cells(i + 1, Decal + NbLaitages + 2).Value = SommeZeu
         Next
 
         Call Colexit()
@@ -1521,15 +1520,14 @@ SiErreur:
         Dim FormatCol As String
 
         ' chemin réseau générique pour l'enregistrement des images de code-barre
-        CheminBureau = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
+        ' CheminBureau = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
+        CheminBureau = Environment.CurrentDirectory
 
         wsExcel = wbExcel.Worksheets("FAMILLES")
-        wsExcel.Activate()
-        NbFamilles = wsExcel.Cells(1, 100).value - 1
+        NbFamilles = GetNonEmptyRows() - 1
 
         wsExcel = wbExcel.Worksheets("PRIX")
-        wsExcel.Activate()
-        nbPrix = wsExcel.Cells(1, 100).value - 1
+        nbPrix = GetNonEmptyRows() - 1
 
         '----------------------lecture des codes prix ---------------------------------------
         If nbPrix > MaxPrix Then
@@ -1541,10 +1539,10 @@ SiErreur:
 
         If nbPrix > 0 Then
             For i = 1 To nbPrix
-                CodePrix(i) = wsExcel.Cells(i + 1, 2).value
-                CodeAIDA(i) = wsExcel.Cells(i + 1, 3).value
-                UnitAIDA(i) = wsExcel.Cells(i + 1, 4).value
-                PrixAIDA(i) = wsExcel.Cells(i + 1, 5).value
+                CodePrix(i) = wsExcel.Cells(i + 1, 2).Value
+                CodeAIDA(i) = wsExcel.Cells(i + 1, 3).Value
+                UnitAIDA(i) = wsExcel.Cells(i + 1, 4).Value
+                PrixAIDA(i) = wsExcel.Cells(i + 1, 5).Value
                 Select Case UCase(UnitAIDA(i))
                     Case "KGM"
                         UnitAIDA(i) = "[KgM]"
@@ -1568,12 +1566,11 @@ SiErreur:
         ' **** CONSTRUCTION DE LA LISTE UNIQUE et SANS DOUBLONS DES CODES PRIX *****
         '-----------------liste des codes viandes------------------------------------
         wsExcel = wbExcel.Worksheets("VIANDES")
-        wsExcel.Activate()
-        nbdenrees = wsExcel.Cells(1, 100).value - 1
+        nbdenrees = GetNonEmptyRows() - 1
 
         If nbdenrees > 0 Then
             For j = 1 To nbdenrees
-                CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).value
+                CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value
             Next
 
             Call ListeCategorie(nbdenrees, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
@@ -1583,12 +1580,11 @@ SiErreur:
 
         '------------liste des codes plats prepares---------------------------------------
         wsExcel = wbExcel.Worksheets("PREPARATIONS")
-        wsExcel.Activate()
-        NbPreparations = wsExcel.Cells(1, 100).value - 1
+        NbPreparations = GetNonEmptyRows() - 1
 
         If NbPreparations > 0 Then
             For j = 1 To NbPreparations
-                CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).value
+                CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value
             Next j
 
             Call ListeCategorie(NbPreparations, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
@@ -1597,12 +1593,11 @@ SiErreur:
 
         '------------liste des codes plats prepares---------------------------------------
         wsExcel = wbExcel.Worksheets("SALADES")
-        wsExcel.Activate()
-        NbSalades = wsExcel.Cells(1, 100).value - 1
+        NbSalades = GetNonEmptyRows() - 1
 
         If NbSalades > 0 Then
             For j = 1 To NbSalades
-                CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).value
+                CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value
             Next j
 
             Call ListeCategorie(NbSalades, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
@@ -1611,12 +1606,11 @@ SiErreur:
 
         '------------liste des codes laitages---------------------------------------
         wsExcel = wbExcel.Worksheets("LAITAGES")
-        wsExcel.Activate()
-        NbLaitages = wsExcel.Cells(1, 100).value - 1
+        NbLaitages = GetNonEmptyRows() - 1
 
         If NbLaitages > 0 Then
             For j = 1 To NbLaitages
-                CodePrixDenree(j) = wsExcel.Cells(j + 1, 5).value
+                CodePrixDenree(j) = wsExcel.Cells(j + 1, 5).Value
             Next j
 
             Call ListeCategorie(NbLaitages, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
@@ -1625,13 +1619,11 @@ SiErreur:
 
         '------------liste des codes divers---------------------------------------
         wsExcel = wbExcel.Worksheets("DIVERS")
-        wsExcel.Activate()
-        wsExcel.Cells(1, 100).value = "=COUNTA(C[-99])"
-        NbDivers = wsExcel.Cells(1, 100).value - 1
+        NbDivers = GetNonEmptyRows() - 1
 
         If NbDivers > 0 Then
             For j = 1 To NbDivers
-                CodePrixDenree(j) = wsExcel.Cells(j + 1, 2).value
+                CodePrixDenree(j) = wsExcel.Cells(j + 1, 2).Value
             Next j
 
             Call ListeCategorie(NbDivers, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
@@ -1658,42 +1650,37 @@ SiErreur:
 
         '-----------Formattage feuille AIDA-----------------------------------------------------
         If FeuilleExiste("AIDA") = True Then
-            appExcel.Application.DisplayAlerts = False
-            wbExcel.Worksheets("AIDA").delete()
-            appExcel.DisplayAlerts = True
+            wbExcel.Worksheets.Delete("AIDA")
 
         End If
-        wsExcel = wbExcel.Worksheets.Add()
+        wsExcel = wbExcel.Worksheets.Add("AIDA")
         wsExcel.Name = "AIDA"
-
 
         '--------recopie colonnes familles ---------------------------------------------------
         wsExcel = wbExcel.Worksheets("RESULTATS")
-        CType(wsExcel.Columns("A:C"), Range).Copy()
+        wsExcel.Cells("A:C").Copy(wbExcel.Worksheets("AIDA").Cells("A:C"))
 
         wsExcel = wbExcel.Worksheets("AIDA")
-        CType(wsExcel.Columns("A:C"), Range).PasteSpecial(Excel.XlPasteType.xlPasteAll)
-        CType(wsExcel.Rows(1), Range).Insert(XlDirection.xlUp)
-        CType(wsExcel.Rows(1), Range).RowHeight = 164
+        wsExcel.InsertRow(1, 1)
+        wsExcel.Row(1).Height = 164
 
         '---------décale l'entête des 3 premieres colonnes -----------------------------
-        wsExcel.Range("A2:C2").Copy()
-        wsExcel.Range("A1:C1").PasteSpecial(Excel.XlPasteType.xlPasteAll)
-        wsExcel.Range("A2:C2").Clear()
-        CType(wsExcel.Columns("B:B"), Range).ColumnWidth = 16
+        wsExcel.Cells("A2:C2").Copy(wsExcel.Cells("A1:C1"))
+        wsExcel.Cells("A2:C2").Clear()
+        wsExcel.Columns("B:B").Width = 16
 
-        CType(wsExcel.Rows(2), Range).RowHeight = 15
+        wsExcel.Rows(2).Height = 15
 
         AlphaColTri = AlphaCol(NbCat + 4)
-        With wsExcel.Range("D:" & AlphaColTri)
-            .ColumnWidth = 13
-            .HorizontalAlignment = -4108
+        wsExcel.Columns("D").Width = 13
+        With wsExcel.Cells("D:" & AlphaColTri)
+            .Style.HorizontalAlignment = -4108
         End With
-        wsExcel.Cells(2, NbCat + 4).value = "PRIX TOTAL"
+        wsExcel.Cells(2, NbCat + 4).Value = "PRIX TOTAL"
 
         Decal = 3
         For j = 1 To NbCat
-            wsExcel.Cells(2, Decal + j).value = Categorie(j) & " " & UnAIDA(j)
+            wsExcel.Cells(2, Decal + j).Value = Categorie(j) & " " & UnAIDA(j)
         Next
 
         '------------------Vérification des totaux---------------------------------
@@ -1732,8 +1719,8 @@ SiErreur:
             If nbdenrees > 0 Then
                 wsExcel = wbExcel.Worksheets("VIANDES")
                 For j = 1 To nbdenrees
-                    CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).value
-                    Poids(j) = wsExcel.Cells(j + 1, 2).value / 1000
+                    CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value
+                    Poids(j) = wsExcel.Cells(j + 1, 2).Value / 1000
                 Next j
                 Call ReportCumul(nbdenrees, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv, Erreur)
                 Decal = Decal + nbdenrees + 3
@@ -1746,8 +1733,8 @@ SiErreur:
             If NbPreparations > 0 Then
                 wsExcel = wbExcel.Worksheets("PREPARATIONS")
                 For j = 1 To NbPreparations
-                    CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).value
-                    Poids(j) = wsExcel.Cells(j + 1, 7).value
+                    CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value
+                    Poids(j) = wsExcel.Cells(j + 1, 7).Value
                 Next j
                 Call ReportCumul(NbPreparations, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv, Erreur)
                 Decal = Decal + NbPreparations + 1
@@ -1760,8 +1747,8 @@ SiErreur:
             If NbSalades > 0 Then
                 wsExcel = wbExcel.Worksheets("SALADES")
                 For j = 1 To NbSalades
-                    CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).value
-                    Poids(j) = wsExcel.Cells(j + 1, 7).value
+                    CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value
+                    Poids(j) = wsExcel.Cells(j + 1, 7).Value
                 Next j
                 Call ReportCumul(NbSalades, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv, Erreur)
                 Decal = Decal + NbSalades + 1
@@ -1774,9 +1761,9 @@ SiErreur:
             If NbLaitages > 0 Then
                 wsExcel = wbExcel.Worksheets("LAITAGES")
                 For j = 1 To NbLaitages
-                    Equiv(j) = wsExcel.Cells(j + 1, 4).value
-                    CodePrixDenree(j) = wsExcel.Cells(j + 1, 5).value
-                    Poids(j) = wsExcel.Cells(j + 1, 6).value
+                    Equiv(j) = wsExcel.Cells(j + 1, 4).Value
+                    CodePrixDenree(j) = wsExcel.Cells(j + 1, 5).Value
+                    Poids(j) = wsExcel.Cells(j + 1, 6).Value
                 Next j
                 Call ReportCumul(NbLaitages, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv, Erreur)
                 Decal = Decal + NbLaitages + 2
@@ -1789,8 +1776,8 @@ SiErreur:
             If NbDivers > 0 Then
                 wsExcel = wbExcel.Worksheets("DIVERS")
                 For j = 1 To NbDivers
-                    CodePrixDenree(j) = wsExcel.Cells(j + 1, 2).value
-                    Poids(j) = wsExcel.Cells(j + 1, 3).value
+                    CodePrixDenree(j) = wsExcel.Cells(j + 1, 2).Value
+                    Poids(j) = wsExcel.Cells(j + 1, 3).Value
                 Next j
                 Call ReportCumul(NbDivers, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv, Erreur)
                 If Erreur Then
@@ -1801,7 +1788,7 @@ SiErreur:
             '----------------------------------------------------------------------------
             wsExcel = wbExcel.Worksheets("AIDA")        'Ecriture des résultats dans l'onglet AIDA
             For k = 1 To NbCat
-                wsExcel.Cells(i + 2, k + 3).value = PoidsCat(k)
+                wsExcel.Cells(i + 2, k + 3).Value = PoidsCat(k)
             Next k
         Next i
 
@@ -1812,15 +1799,15 @@ SiErreur:
                 SousTotal = 0
                 TotalArrondi = 0
                 For i = 1 To NbFamilles
-                    SousTotal += wsExcel.Cells(i + 2, k + 3).value               'calcule le total brut 
-                    Arrondi = Math.Round(wsExcel.Cells(i + 2, k + 3).value, 2)   ' carrondi les valeurs
-                    wsExcel.Cells(i + 2, k + 3).value = Arrondi
-                    TotalArrondi += wsExcel.Cells(i + 2, k + 3).value           ' calcule le total des arrondis
+                    SousTotal += wsExcel.Cells(i + 2, k + 3).Value               'calcule le total brut 
+                    Arrondi = Math.Round(wsExcel.Cells(i + 2, k + 3).Value, 2)   ' carrondi les valeurs
+                    wsExcel.Cells(i + 2, k + 3).Value = Arrondi
+                    TotalArrondi += wsExcel.Cells(i + 2, k + 3).Value           ' calcule le total des arrondis
                 Next i
                 For i = 1 To NbFamilles
-                    If wsExcel.Cells(i + 2, k + 3).value > 0 Then
+                    If wsExcel.Cells(i + 2, k + 3).Value > 0 Then
                         Ecart = SousTotal - TotalArrondi            ' calcule la différence entre les deux sous-totaux
-                        wsExcel.Cells(i + 2, k + 3).value += Ecart  ' reporte l'écart entre le total brut et le total des arrondis
+                        wsExcel.Cells(i + 2, k + 3).Value += Ecart  ' reporte l'écart entre le total brut et le total des arrondis
                         Exit For            ' sort de la boucle dès que l'écart est reporté
                     End If
                 Next i
@@ -1831,9 +1818,9 @@ SiErreur:
         For i = 1 To NbFamilles
             PrixPanier = 0
             For k = 1 To NbCat
-                PrixPanier += wsExcel.Cells(i + 2, k + 3).value * PrixListe(k)
+                PrixPanier += wsExcel.Cells(i + 2, k + 3).Value * PrixListe(k)
             Next k
-            wsExcel.Cells(i + 2, NbCat + 4).value = PrixPanier
+            wsExcel.Cells(i + 2, NbCat + 4).Value = PrixPanier
         Next i
 
         '------------------Mise en forme onglet AIDA------------------------------------------
@@ -1841,7 +1828,10 @@ SiErreur:
         i = 2
         AlphaColTri = AlphaCol(NbCat + 3)
         While i < NbFamilles + 3         'colorie les lignes une sur deux
-            wsExcel.Range("A" & i & ":" & AlphaColTri & i).Interior.ColorIndex = 19
+            With wsExcel.Cells("A" & i & ":" & AlphaColTri & i).Style
+                .Fill.PatternType = ExcelFillStyle.Solid
+                .Fill.BackgroundColor.Indexed = 19
+            End With
             i += 2
         End While
 
@@ -1850,16 +1840,16 @@ SiErreur:
             AlphaColTri = AlphaCol(i + 3)
             If UnAIDA(i) = "[kgC]" Or UnAIDA(i) = "[kgM]" Then
                 FormatCol = "###0.0#;;#"
-                CType(wsExcel.Columns(AlphaColTri & ":" & AlphaColTri), Range).NumberFormat = FormatCol
+                wsExcel.Columns(AlphaColTri & ":" & AlphaColTri).Style.Numberformat.Format = FormatCol
             Else
                 FormatCol = "####;;#"
-                CType(wsExcel.Columns(AlphaColTri & ":" & AlphaColTri), Range).NumberFormat = FormatCol
+                wsExcel.Columns(AlphaColTri & ":" & AlphaColTri).Style.Numberformat.Format = FormatCol
             End If
         Next
 
         AlphaColTri = AlphaCol(NbCat + 4)       'colonne Totaux
         FormatCol = "#0.0#;;#"
-        CType(wsExcel.Columns(AlphaColTri & ":" & AlphaColTri), Range).NumberFormat = FormatCol
+        wsExcel.Columns(AlphaColTri & ":" & AlphaColTri).Style.Numberformat.Format = FormatCol
 
         '--------------Codes barres ------------------------------------------------
         Decal = 3
@@ -1870,21 +1860,18 @@ SiErreur:
             Call CodeBarreBMP(j, Contenu)
 
             wsExcel = wbExcel.Worksheets("AIDA")
-            wsExcel.Activate()
-            wsExcel.Cells(1, jdec).select
+            ' wsExcel.Cells(1, jdec).Select()
 
             Dim dT, dL, dW, dH As Single
-            dT = wsExcel.Cells(1, jdec).Top          'coordonnées du haut de l'image
-            dL = wsExcel.Cells(1, jdec).left         ' coordonnées du coté gauche de l'image
+            dT = 0 ' wsExcel.Cells(1, jdec).Top          'coordonnées du haut de l'image
+            dL = 0 ' wsExcel.Cells(1, jdec).left         ' coordonnées du coté gauche de l'image
             dW = 70                                  ' largeur de l'image
             dH = 160                                 ' hauteur de l'image
 
-            wsExcel.Shapes.AddPicture(CheminBureau + "\Image" & j & ".bmp",
-                Microsoft.Office.Core.MsoTriState.msoFalse, Microsoft.Office.Core.MsoTriState.msoCTrue, dL, dT, dW, dH)
-        Next
-
-        For j = 1 To NbCat
-            Microsoft.VisualBasic.FileSystem.Kill(CheminBureau + "\Image" & j & ".bmp")
+            Dim fileName = "Image" & j & ".bmp"
+            Dim picture = wsExcel.Drawings.AddPicture(fileName, Path.Combine(CheminBureau, fileName))
+            picture.SetSize(dW, dH)
+            picture.SetPosition(dT, dL)
         Next
 
         Call Colexit()
@@ -1897,7 +1884,7 @@ SiErreur:
         Dim AlphaColTri As String
 
         For j = 1 To nbden
-            If wsExcel.Cells(NbFamilles + 2, j + Decal).value = 0 Then
+            If wsExcel.Cells(NbFamilles + 2, j + Decal).Value = 0 Then
                 AlphaColTri = AlphaCol(j + Decal)
                 TexteMsg = "Ligne " & NbFamilles + 2 & "  La somme de la colonne " & AlphaColTri & " est nulle"
                 Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RAPPORT")
@@ -1921,15 +1908,15 @@ SiErreur:
             For k = 1 To NbCat
                 Select Case UCase(UnAIDA(k))
                     Case "[BOI]"
-                        If Categorie(k) = CodePrixDenree(j) Then PoidsCat(k) = PoidsCat(k) + wsExcel.Cells(i + 1, j + Decal).value * Equiv(j)
+                        If Categorie(k) = CodePrixDenree(j) Then PoidsCat(k) = PoidsCat(k) + wsExcel.Cells(i + 1, j + Decal).Value * Equiv(j)
                     Case "[KGC]"
-                        If Categorie(k) = CodePrixDenree(j) Then PoidsCat(k) = PoidsCat(k) + Poids(j) * wsExcel.Cells(i + 1, j + Decal).value
+                        If Categorie(k) = CodePrixDenree(j) Then PoidsCat(k) = PoidsCat(k) + Poids(j) * wsExcel.Cells(i + 1, j + Decal).Value
                     Case "[KGM]"
-                        If Categorie(k) = CodePrixDenree(j) And wsExcel.Cells(NbFamilles + 2, j + Decal).value <> 0 Then
-                            PoidsCat(k) = PoidsCat(k) + wsExcel.Cells(i + 1, j + Decal).value * Poids(j) / wsExcel.Cells(NbFamilles + 2, j + Decal).value
+                        If Categorie(k) = CodePrixDenree(j) And wsExcel.Cells(NbFamilles + 2, j + Decal).Value <> 0 Then
+                            PoidsCat(k) = PoidsCat(k) + wsExcel.Cells(i + 1, j + Decal).Value * Poids(j) / wsExcel.Cells(NbFamilles + 2, j + Decal).Value
                         End If
                     Case "[UN]"
-                        If Categorie(k) = CodePrixDenree(j) Then PoidsCat(k) = PoidsCat(k) + wsExcel.Cells(i + 1, j + Decal).value
+                        If Categorie(k) = CodePrixDenree(j) Then PoidsCat(k) = PoidsCat(k) + wsExcel.Cells(i + 1, j + Decal).Value
                     Case Else
                         Erreur = True
                         CatErreur = Categorie(k)
@@ -2096,7 +2083,7 @@ SiErreur:
         'PictureBox1.Image = newBitmap
         newBitmap.RotateFlip(RotateFlipType.Rotate270FlipNone)      'Rotation de l'image verticalement si besoin
         'PictureBox1.Image.Save(Cheminbureau + "\Image" & j & ".bmp")
-        newBitmap.Save(CheminBureau + "\Image" & j & ".bmp")
+        newBitmap.Save(Path.Combine(CheminBureau, "Image" & j & ".bmp"))
 
     End Sub
     Public Function Code128(strChaine As String) As String
