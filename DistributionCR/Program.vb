@@ -1836,7 +1836,7 @@ SiErreur:
 
             Dim dT, dL, dW, dH As Single
             dT = 0                                   'coordonnées du haut de l'image
-            dL = 217 + (j - 1) * 91           ' coordonnées du coté gauche de l'image
+            dL = 214 + (j - 1) * 91           ' coordonnées du coté gauche de l'image
             dW = 91                               ' largeur de l'image
             dH = 213                           ' hauteur de l'image
 
