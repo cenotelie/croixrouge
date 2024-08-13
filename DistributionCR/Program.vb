@@ -71,7 +71,7 @@ Public Module Program
         wsExcel.Cells(1, 8).Value = "Criticité"
         With wsExcel.Cells("A1:H1").Style
             .Fill.PatternType = ExcelFillStyle.Solid
-            .Fill.BackgroundColor.Indexed = 6
+            .Fill.BackgroundColor.Indexed = 13
             .Font.Bold = True
             .Border.Bottom.Style = ExcelBorderStyle.Medium
         End With
@@ -1015,6 +1015,9 @@ Public Module Program
         'mise en gras colonnes familles
         wsExcel.Columns(1, 5).Style.Font.Bold = True
         wsExcel.Columns(1).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+        wsExcel.Columns(1).Width = 10
+        wsExcel.Columns(2).Width = 16
+        wsExcel.Columns(3).Width = 4
         For Each c In {3, 4, 5}
             With wsExcel.Column(c)
                 .Width = 4
@@ -1039,11 +1042,11 @@ Public Module Program
         End With
 
         i = 0
-        While i < NbFamilles
+        While i < NbFamilles + 2
             i += 2
             With wsExcel.Cells("A" & i & ":" & AlphaColTri & i).Style
                 .Fill.PatternType = ExcelFillStyle.Solid
-                .Fill.BackgroundColor.Indexed = 19
+                .Fill.BackgroundColor.Indexed = 26
             End With
         End While
 
@@ -1052,21 +1055,19 @@ Public Module Program
             'AlphaColTri = AlphaCol(Decal + NbDenrees)
             wsExcel.Columns(6, Decal + NbDenrees).Width = 4
             wsExcel.Columns(6, Decal + NbDenrees).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
-            ''  Call TraitsVerticaux(1, NbFamilles + 2)
 
             AlphaColTri = AlphaCol(Decal + NbDenrees + 1)
             AlphaColTri2 = AlphaCol(Decal + NbDenrees + 3)
             With wsExcel.Columns(Decal + NbDenrees + 1, Decal + NbDenrees + 3)
-                .Width = 6
+                .Width = 8
                 .Style.Font.Bold = True
                 .Style.Numberformat.Format = "0.0"
             End With
             With wsExcel.Cells(AlphaColTri & 1 & ":" & AlphaColTri2 & NbFamilles + 2).Style
                 .Fill.PatternType = ExcelFillStyle.Solid
-                .Fill.BackgroundColor.Indexed = 40
+                .Fill.BackgroundColor.Indexed = 13
             End With
 
-            Call Bordure(AlphaColTri, AlphaColTri2, NbFamilles + 2)
             Decal += NbDenrees + 3
 
         End If
@@ -1075,7 +1076,6 @@ Public Module Program
             AlphaColTri2 = AlphaCol(Decal + NbPreparations)
             wsExcel.Columns(Decal + 1, Decal + NbPreparations).Width = 4
             wsExcel.Columns(Decal + 1, Decal + NbPreparations).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
-            'Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
 
             AlphaColTri = AlphaCol(Decal + NbPreparations + 1)
             With wsExcel.Columns(Decal + NbPreparations + 1)
@@ -1085,10 +1085,9 @@ Public Module Program
             End With
             With wsExcel.Cells(AlphaColTri & 1 & ":" & AlphaColTri & NbFamilles + 2).Style
                 .Fill.PatternType = ExcelFillStyle.Solid
-                .Fill.BackgroundColor.Indexed = 40
+                .Fill.BackgroundColor.Indexed = 13
             End With
 
-            Call Bordure(AlphaColTri, AlphaColTri, NbFamilles + 2)
             Decal += NbPreparations + 1
         End If
         If NbSalades > 0 Then
@@ -1096,7 +1095,6 @@ Public Module Program
             AlphaColTri2 = AlphaCol(Decal + NbSalades)
             wsExcel.Columns(Decal + 1, Decal + NbSalades).Width = 4
             wsExcel.Columns(Decal + 1, Decal + NbSalades).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
-            'Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
 
             AlphaColTri = AlphaCol(Decal + NbSalades + 1)
             With wsExcel.Columns(Decal + NbSalades + 1)
@@ -1106,10 +1104,9 @@ Public Module Program
             End With
             With wsExcel.Cells(AlphaColTri & 1 & ":" & AlphaColTri & NbFamilles + 2).Style
                 .Fill.PatternType = ExcelFillStyle.Solid
-                .Fill.BackgroundColor.Indexed = 40
+                .Fill.BackgroundColor.Indexed = 13
             End With
 
-            Call Bordure(AlphaColTri, AlphaColTri, NbFamilles + 2)
             Decal += NbSalades + 1
         End If
         If NbLaitages > 0 Then
@@ -1117,7 +1114,6 @@ Public Module Program
             AlphaColTri2 = AlphaCol(Decal + NbLaitages)
             wsExcel.Columns(Decal + 1, Decal + NbLaitages).Width = 4
             wsExcel.Columns(Decal + 1, Decal + NbLaitages).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
-            'Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
 
             AlphaColTri = AlphaCol(Decal + NbLaitages + 1)
             AlphaColTri2 = AlphaCol(Decal + NbLaitages + 2)
@@ -1128,9 +1124,9 @@ Public Module Program
             End With
             With wsExcel.Cells(AlphaColTri & 1 & ":" & AlphaColTri2 & NbFamilles + 2).Style
                 .Fill.PatternType = ExcelFillStyle.Solid
-                .Fill.BackgroundColor.Indexed = 40
+                .Fill.BackgroundColor.Indexed = 13
             End With
-            Call Bordure(AlphaColTri, AlphaColTri, NbFamilles + 2)
+
             Decal += NbLaitages + 1
         End If
         If NbDivers > 0 Then
@@ -1138,8 +1134,18 @@ Public Module Program
             AlphaColTri2 = AlphaCol(Decal + NbDivers + 1)
             wsExcel.Columns(Decal + 1, Decal + NbDivers + 1).Width = 4
             wsExcel.Columns(Decal + 1, Decal + NbDivers + 1).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
-            ' Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
+
         End If
+
+        ' Traits verticaux
+        For i = 1 To Decal + NbDivers + 1
+            AlphaColTri = AlphaCol(i)
+            With wsExcel.Cells(AlphaColTri & "1:" & AlphaColTri & NbFamilles + 2).Style
+                .Border.Left.Style = ExcelBorderStyle.Thin
+                .Border.Right.Style = ExcelBorderStyle.Thin
+            End With
+
+        Next i
 
         Call Colexit()
 
@@ -1343,23 +1349,7 @@ SiErreur:
         wsExcel.Cells("A2:" & AlphaColTri & nblignes).Sort(sortOptions)
     End Sub
 
-    Public Sub TraitsVerticaux(Alpha1 As String, Alpha2 As String, Nblignes As Integer)
-        With wsExcel.Cells(Alpha1 & "1:" & Alpha2 & Nblignes).Style
-            '.Borders(XlBordersIndex.xlInsideVertical)
-            ' .LineStyle = XlLineStyle.xlContinuous
-            '.Weight = XlBorderWeight.xlThin
-        End With
-    End Sub
 
-    Public Sub Bordure(Alpha1 As String, Alpha2 As String, Nblignes As Integer)
-        With wsExcel.Cells(Alpha1 & "1:" & Alpha2 & Nblignes).Style
-            .Font.Bold = True
-            .Border.Left.Style = ExcelBorderStyle.Medium
-            .Border.Top.Style = ExcelBorderStyle.Medium
-            .Border.Bottom.Style = ExcelBorderStyle.Medium
-            .Border.Right.Style = ExcelBorderStyle.Medium
-        End With
-    End Sub
     Public Sub Reporting(Onglet As String, Criticite As String, ReportMsg As String, Retour As String)
 
         wsExcel = wbExcel.Worksheets("RAPPORT")
@@ -1670,12 +1660,15 @@ SiErreur:
         '---------décale l'entête des 3 premieres colonnes -----------------------------
         wsExcel.Cells("A2:C2").Copy(wsExcel.Cells("A1:C1"))
         wsExcel.Cells("A2:C2").Clear()
-        wsExcel.Columns(2, 2).Width = 16
+
+        wsExcel.Columns(1).Width = 10
+        wsExcel.Columns(2).Width = 16
+        wsExcel.Columns(3).Width = 4
+        wsExcel.Columns(4, NbCat + 4).Width = 13
 
         wsExcel.Rows(2).Height = 15
 
         AlphaColTri = AlphaCol(NbCat + 4)
-        wsExcel.Columns(4).Width = 13
         With wsExcel.Cells("D:" & AlphaColTri)
             .Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
         End With
@@ -1685,30 +1678,6 @@ SiErreur:
         For j = 1 To NbCat
             wsExcel.Cells(2, Decal + j).Value = Categorie(j) & " " & UnAIDA(j)
         Next
-
-        '------------------Vérification des totaux---------------------------------
-        'Test = False
-        wsExcel = wbExcel.Worksheets("RESULTATS")
-        Decal = 5
-        If nbdenrees > 0 Then
-            Call TestSomme(nbdenrees)
-            Decal += nbdenrees + 3
-        End If
-        If NbPreparations > 0 Then
-            Call TestSomme(NbPreparations)
-            Decal += NbPreparations + 1
-        End If
-        If NbSalades > 0 Then
-            Call TestSomme(NbSalades)
-            Decal += NbSalades + 1
-        End If
-        If NbLaitages > 0 Then
-            Call TestSomme(NbLaitages)
-            Decal += NbLaitages + 2
-        End If
-        If NbDivers > 0 Then
-            Call TestSomme(NbDivers)
-        End If
 
         '------------Report des cumuls par catégorie, pour chaque famille---------------------
         For i = 1 To NbFamilles
@@ -1833,7 +1802,7 @@ SiErreur:
         While i < NbFamilles + 3         'colorie les lignes une sur deux
             With wsExcel.Cells("A" & i & ":" & AlphaColTri & i).Style
                 .Fill.PatternType = ExcelFillStyle.Solid
-                .Fill.BackgroundColor.Indexed = 19
+                .Fill.BackgroundColor.Indexed = 26
             End With
             i += 2
         End While
@@ -1866,10 +1835,10 @@ SiErreur:
             ' wsExcel.Cells(1, jdec).Select()
 
             Dim dT, dL, dW, dH As Single
-            dT = 0 ' wsExcel.Cells(1, jdec).Top          'coordonnées du haut de l'image
-            dL = 0 ' wsExcel.Cells(1, jdec).left         ' coordonnées du coté gauche de l'image
-            dW = 70                                  ' largeur de l'image
-            dH = 160                                 ' hauteur de l'image
+            dT = 0                                   'coordonnées du haut de l'image
+            dL = 217 + (j - 1) * 91           ' coordonnées du coté gauche de l'image
+            dW = 91                               ' largeur de l'image
+            dH = 213                           ' hauteur de l'image
 
             Dim fileName = "Image" & j & ".bmp"
             Dim picture = wsExcel.Drawings.AddPicture(fileName, Path.Combine(CheminBureau, fileName))
