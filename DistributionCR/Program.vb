@@ -62,6 +62,7 @@ Public Module Program
             'supprime la feuille avant de commencer
             wbExcel.Worksheets.Delete("RAPPORT")
         End If
+
         wsExcel = wbExcel.Worksheets.Add("RAPPORT")
         wsExcel.Name = "RAPPORT"
 
@@ -112,9 +113,11 @@ Public Module Program
 
     Public Sub Colexit()
         ' ------- Sauvegarde et fermeture d'Excel -------------------------------------
-        appExcel.Save()
-        appExcel = Nothing
-        wbExcel = Nothing
+        If Not IsNothing(appExcel) Then
+            appExcel.Save()
+            appExcel = Nothing
+            wbExcel = Nothing
+        End If
     End Sub
 
     Private Sub Repartition()
@@ -261,11 +264,11 @@ Public Module Program
         End If
 
         Col1 = "B"      'Préparation du tri des données Viandes
-        Mode1 = 2       'décroissant
+        Mode1 = eSortOrder.Descending       'décroissant
         Col2 = ""
-        Mode2 = 1
+        Mode2 = eSortOrder.Ascending
         Col3 = ""
-        Mode3 = 1
+        Mode3 = eSortOrder.Ascending
         Call TriMultiple("VIANDES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 6, NbDenrees + 1)
 
         PTotViande = 0
@@ -318,11 +321,11 @@ Public Module Program
         End If
 
         Col1 = "B"
-        Mode1 = 1       'croissant
+        Mode1 = eSortOrder.Ascending       'croissant
         Col2 = ""
-        Mode2 = 1
+        Mode2 = eSortOrder.Ascending
         Col3 = ""
-        Mode3 = 1
+        Mode3 = eSortOrder.Ascending
         Call TriMultiple("PREPARATIONS", Col1, Mode1, Col2, Mode2, Col3, Mode3, 8, NbPreparations + 1)
 
         PTotPrepa = 0
@@ -386,11 +389,11 @@ Public Module Program
         End If
 
         Col1 = "B"
-        Mode1 = 1       ' tri croissant
+        Mode1 = eSortOrder.Ascending       ' tri croissant
         Col2 = ""
-        Mode2 = 1
+        Mode2 = eSortOrder.Ascending
         Col3 = ""
-        Mode3 = 1
+        Mode3 = eSortOrder.Ascending
         Call TriMultiple("SALADES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 8, NbSalades + 1)
 
         PTotSalad = 0
@@ -454,11 +457,11 @@ Public Module Program
         End If
 
         Col1 = "C"
-        Mode1 = 1       ' tri croissant
+        Mode1 = eSortOrder.Ascending       ' tri croissant
         Col2 = "D"
-        Mode2 = 2
+        Mode2 = eSortOrder.Descending
         Col3 = "B"
-        Mode3 = 1
+        Mode3 = eSortOrder.Ascending
         Call TriMultiple("LAITAGES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 6, NbLaitages + 1)
 
         PtotLait = 0
@@ -522,11 +525,11 @@ Public Module Program
         Next
 
         Col1 = "H"
-        Mode1 = 2       ' tri croissant
+        Mode1 = eSortOrder.Descending       ' tri croissant
         Col2 = "E"
-        Mode2 = 2
+        Mode2 = eSortOrder.Descending
         Col3 = "J"
-        Mode3 = 1
+        Mode3 = eSortOrder.Ascending
         Call TriMultiple("FAMILLES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 10, NbFamilles + 1)
 
         NbTotViande = 0
@@ -613,7 +616,7 @@ Public Module Program
             Next
 
             For j = 1 To NbDenrees
-                wsExcel.Cells(NbFamilles + 2, j + Decal).Value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
+                wsExcel.Cells(NbFamilles + 2, j + Decal).FormulaR1C1 = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
             Next
 
             wsExcel.Cells(NbFamilles + 2, NbDenrees + 7).Value = PTotViande
@@ -637,15 +640,15 @@ Public Module Program
         'tri des familles
         wsExcel = wbExcel.Worksheets("FAMILLES")
         Col1 = "G"
-        Mode1 = 2       ' tri descending
+        Mode1 = eSortOrder.Descending       ' tri descending
         Col2 = "F"
-        Mode2 = 2
+        Mode2 = eSortOrder.Descending
         If NbDenrees > 0 Then
             Col3 = "I"      ' tri sur les écarts de poids (attribué - théorique) pour prioriser l'attribution des préparations
-            Mode3 = 1
+            Mode3 = eSortOrder.Ascending
         Else
             Col3 = "E"
-            Mode3 = 2
+            Mode3 = eSortOrder.Descending
         End If
         Call TriMultiple("FAMILLES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 10, NbFamilles + 1)
 
@@ -665,15 +668,15 @@ Public Module Program
         ' tri des résultats, de la même façon
         wsExcel = wbExcel.Worksheets("RESULTATS")
         Col1 = "E"
-        Mode1 = 2       ' tri descending
+        Mode1 = eSortOrder.Descending       ' tri descending
         Col2 = "D"
-        Mode2 = 2
+        Mode2 = eSortOrder.Descending
         If NbDenrees > 0 Then
             Col3 = AlphaCol(Decal)
-            Mode3 = 1
+            Mode3 = eSortOrder.Ascending
         Else
             Col3 = "C"
-            Mode3 = 2
+            Mode3 = eSortOrder.Descending
         End If
         k = NbDenrees + NbPreparations + NbSalades + NbLaitages + 30
         Call TriMultiple("RESULTATS", Col1, Mode1, Col2, Mode2, Col3, Mode3, k, NbFamilles + 2)
@@ -704,11 +707,11 @@ Public Module Program
 
             'total de chaque plat en bas de tableau 
             For j = 1 To NbPreparations
-                wsExcel.Cells(NbFamilles + 2, j + Decal).Value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
+                wsExcel.Cells(NbFamilles + 2, j + Decal).FormulaR1C1 = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
             Next
             'report nbre de plats preparés par famille
             For i = 1 To NbFamilles
-                wsExcel.Cells(i + 1, Decal + NbPreparations + 1).Value = "=SUM(RC[-" & NbPreparations & "]:RC[-1])"
+                wsExcel.Cells(i + 1, Decal + NbPreparations + 1).FormulaR1C1 = "=SUM(RC[-" & NbPreparations & "]:RC[-1])"
             Next
 
             wsExcel = wbExcel.Worksheets("FAMILLES")
@@ -751,11 +754,11 @@ Public Module Program
             Call Attribution3(NbSalades, ResteQuant, PoidsSalade, SaladeSC, SaladeSV, ParamEcart)
 
             For j = 1 To NbSalades
-                wsExcel.Cells(NbFamilles + 2, j + Decal).Value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
+                wsExcel.Cells(NbFamilles + 2, j + Decal).FormulaR1C1 = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
             Next
 
             For i = 1 To NbFamilles
-                wsExcel.Cells(i + 1, Decal + NbSalades + 1).Value = "=SUM(RC[-" & NbSalades & "]:RC[-1])"
+                wsExcel.Cells(i + 1, Decal + NbSalades + 1).FormulaR1C1 = "=SUM(RC[-" & NbSalades & "]:RC[-1])"
             Next
 
         End If
@@ -767,11 +770,11 @@ Public Module Program
         'tri des familles
         wsExcel = wbExcel.Worksheets("FAMILLES")
         Col1 = "E"
-        Mode1 = 2       ' tri descending
+        Mode1 = eSortOrder.Descending       ' tri descending
         Col2 = "A"
-        Mode2 = 1
+        Mode2 = eSortOrder.Ascending
         Col3 = ""
-        Mode3 = 1
+        Mode3 = eSortOrder.Ascending
 
         Call TriMultiple("FAMILLES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 10, NbFamilles + 1)
 
@@ -790,11 +793,11 @@ Public Module Program
         ' tri des résultats, de la même façon
         wsExcel = wbExcel.Worksheets("RESULTATS")
         Col1 = "C"
-        Mode1 = 2       ' tri descending
+        Mode1 = eSortOrder.Descending       ' tri descending
         Col2 = "A"
-        Mode2 = 1
+        Mode2 = eSortOrder.Ascending
         Col3 = ""
-        Mode3 = 2
+        Mode3 = eSortOrder.Descending
 
         k = NbDenrees + NbPreparations + NbSalades + NbLaitages + 30
 
@@ -976,7 +979,7 @@ Public Module Program
                 wsExcel.Cells(i + 1, Decal + NbLaitages + 2).Value = PanierZeu(i)
             Next
             For j = 1 To NbLaitages
-                wsExcel.Cells(NbFamilles + 2, j + Decal).Value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
+                wsExcel.Cells(NbFamilles + 2, j + Decal).FormulaR1C1 = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
             Next
             Decal += NbLaitages + 2
         End If
@@ -1000,7 +1003,7 @@ Public Module Program
             wsExcel = wbExcel.Worksheets("RESULTATS")
             For i = 1 To NbDivers
                 wsExcel.Cells(1, i + Decal).Value = Divers(i)
-                wsExcel.Cells(NbFamilles + 2, i + Decal).Value = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
+                wsExcel.Cells(NbFamilles + 2, i + Decal).FormulaR1C1 = "=SUM(R[-" & NbFamilles & "]C:R[-1]C)"
             Next i
         End If
 
@@ -1011,11 +1014,11 @@ Public Module Program
         wsExcel = wbExcel.Worksheets("RESULTATS")
         'mise en gras colonnes familles
         wsExcel.Columns(1, 5).Style.Font.Bold = True
-        wsExcel.Columns(1).Style.HorizontalAlignment = -4108
+        wsExcel.Columns(1).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
         For Each c In {3, 4, 5}
             With wsExcel.Column(c)
                 .Width = 4
-                .Style.HorizontalAlignment = -4108
+                .Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
             End With
         Next
 
@@ -1029,7 +1032,7 @@ Public Module Program
 
         AlphaColTri = AlphaCol(Decal)
         With wsExcel.Cells("C1:" & AlphaColTri & "1").Style
-            .HorizontalAlignment = -4108
+            .HorizontalAlignment = ExcelHorizontalAlignment.Center
             .TextRotation = 90
             .Font.Bold = True
             .Border.Bottom.Style = ExcelBorderStyle.Medium
@@ -1046,14 +1049,14 @@ Public Module Program
 
         Decal = 5
         If NbDenrees > 0 Then
-            AlphaColTri = AlphaCol(Decal + NbDenrees)
-            wsExcel.Columns("F:" & AlphaColTri).Width = 4
-            wsExcel.Columns("F:" & AlphaColTri).Style.HorizontalAlignment = -4108
-            Call TraitsVerticaux("A", AlphaColTri, NbFamilles + 2)
+            'AlphaColTri = AlphaCol(Decal + NbDenrees)
+            wsExcel.Columns(6, Decal + NbDenrees).Width = 4
+            wsExcel.Columns(6, Decal + NbDenrees).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+            ''  Call TraitsVerticaux(1, NbFamilles + 2)
 
             AlphaColTri = AlphaCol(Decal + NbDenrees + 1)
             AlphaColTri2 = AlphaCol(Decal + NbDenrees + 3)
-            With wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2)
+            With wsExcel.Columns(Decal + NbDenrees + 1, Decal + NbDenrees + 3)
                 .Width = 6
                 .Style.Font.Bold = True
                 .Style.Numberformat.Format = "0.0"
@@ -1070,15 +1073,15 @@ Public Module Program
         If NbPreparations > 0 Then
             AlphaColTri = AlphaCol(Decal + 1)
             AlphaColTri2 = AlphaCol(Decal + NbPreparations)
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Width = 4
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Style.HorizontalAlignment = -4108
-            Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
+            wsExcel.Columns(Decal + 1, Decal + NbPreparations).Width = 4
+            wsExcel.Columns(Decal + 1, Decal + NbPreparations).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+            'Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
 
             AlphaColTri = AlphaCol(Decal + NbPreparations + 1)
-            With wsExcel.Columns(AlphaColTri & ":" & AlphaColTri)
+            With wsExcel.Columns(Decal + NbPreparations + 1)
                 .Width = 6
                 .Style.Font.Bold = True
-                .Style.HorizontalAlignment = -4108
+                .Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
             End With
             With wsExcel.Cells(AlphaColTri & 1 & ":" & AlphaColTri & NbFamilles + 2).Style
                 .Fill.PatternType = ExcelFillStyle.Solid
@@ -1091,15 +1094,15 @@ Public Module Program
         If NbSalades > 0 Then
             AlphaColTri = AlphaCol(Decal + 1)
             AlphaColTri2 = AlphaCol(Decal + NbSalades)
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Width = 4
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Style.HorizontalAlignment = -4108
-            Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
+            wsExcel.Columns(Decal + 1, Decal + NbSalades).Width = 4
+            wsExcel.Columns(Decal + 1, Decal + NbSalades).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+            'Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
 
             AlphaColTri = AlphaCol(Decal + NbSalades + 1)
-            With wsExcel.Columns(AlphaColTri & ":" & AlphaColTri)
+            With wsExcel.Columns(Decal + NbSalades + 1)
                 .Width = 6
                 .Style.Font.Bold = True
-                .Style.HorizontalAlignment = -4108
+                .Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
             End With
             With wsExcel.Cells(AlphaColTri & 1 & ":" & AlphaColTri & NbFamilles + 2).Style
                 .Fill.PatternType = ExcelFillStyle.Solid
@@ -1112,16 +1115,16 @@ Public Module Program
         If NbLaitages > 0 Then
             AlphaColTri = AlphaCol(Decal + 1)
             AlphaColTri2 = AlphaCol(Decal + NbLaitages)
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Width = 4
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Style.HorizontalAlignment = -4108
-            Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
+            wsExcel.Columns(Decal + 1, Decal + NbLaitages).Width = 4
+            wsExcel.Columns(Decal + 1, Decal + NbLaitages).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+            'Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
 
             AlphaColTri = AlphaCol(Decal + NbLaitages + 1)
             AlphaColTri2 = AlphaCol(Decal + NbLaitages + 2)
-            With wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2)
+            With wsExcel.Columns(Decal + NbLaitages + 1, Decal + NbLaitages + 2)
                 .Width = 6
                 .Style.Font.Bold = True
-                .Style.HorizontalAlignment = -4108
+                .Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
             End With
             With wsExcel.Cells(AlphaColTri & 1 & ":" & AlphaColTri2 & NbFamilles + 2).Style
                 .Fill.PatternType = ExcelFillStyle.Solid
@@ -1133,9 +1136,9 @@ Public Module Program
         If NbDivers > 0 Then
             AlphaColTri = AlphaCol(Decal + 1)
             AlphaColTri2 = AlphaCol(Decal + NbDivers + 1)
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Width = 4
-            wsExcel.Columns(AlphaColTri & ":" & AlphaColTri2).Style.HorizontalAlignment = -4108
-            Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
+            wsExcel.Columns(Decal + 1, Decal + NbDivers + 1).Width = 4
+            wsExcel.Columns(Decal + 1, Decal + NbDivers + 1).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+            ' Call TraitsVerticaux(AlphaColTri, AlphaColTri2, NbFamilles + 2)
         End If
 
         Call Colexit()
@@ -1321,8 +1324,8 @@ SiErreur:
         NumCol = total - 1
     End Function
 
-    Public Sub TriMultiple(Feuille As String, Col1 As String, Mode1 As Integer, Col2 As String, Mode2 As Integer,
-                    Col3 As String, Mode3 As Integer, nbcol As Integer, nblignes As Integer)
+    Public Sub TriMultiple(Feuille As String, Col1 As String, Mode1 As eSortOrder, Col2 As String, Mode2 As eSortOrder,
+                    Col3 As String, Mode3 As eSortOrder, nbcol As Integer, nblignes As Integer)
 
         Dim h As Integer
         Dim AlphaColTri As String
@@ -1667,14 +1670,14 @@ SiErreur:
         '---------décale l'entête des 3 premieres colonnes -----------------------------
         wsExcel.Cells("A2:C2").Copy(wsExcel.Cells("A1:C1"))
         wsExcel.Cells("A2:C2").Clear()
-        wsExcel.Columns("B:B").Width = 16
+        wsExcel.Columns(2, 2).Width = 16
 
         wsExcel.Rows(2).Height = 15
 
         AlphaColTri = AlphaCol(NbCat + 4)
-        wsExcel.Columns("D").Width = 13
+        wsExcel.Columns(4).Width = 13
         With wsExcel.Cells("D:" & AlphaColTri)
-            .Style.HorizontalAlignment = -4108
+            .Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
         End With
         wsExcel.Cells(2, NbCat + 4).Value = "PRIX TOTAL"
 
@@ -1840,16 +1843,16 @@ SiErreur:
             AlphaColTri = AlphaCol(i + 3)
             If UnAIDA(i) = "[kgC]" Or UnAIDA(i) = "[kgM]" Then
                 FormatCol = "###0.0#;;#"
-                wsExcel.Columns(AlphaColTri & ":" & AlphaColTri).Style.Numberformat.Format = FormatCol
+                wsExcel.Columns(i + 3).Style.Numberformat.Format = FormatCol
             Else
                 FormatCol = "####;;#"
-                wsExcel.Columns(AlphaColTri & ":" & AlphaColTri).Style.Numberformat.Format = FormatCol
+                wsExcel.Columns(i + 3).Style.Numberformat.Format = FormatCol
             End If
         Next
 
         AlphaColTri = AlphaCol(NbCat + 4)       'colonne Totaux
         FormatCol = "#0.0#;;#"
-        wsExcel.Columns(AlphaColTri & ":" & AlphaColTri).Style.Numberformat.Format = FormatCol
+        wsExcel.Columns(NbCat + 4).Style.Numberformat.Format = FormatCol
 
         '--------------Codes barres ------------------------------------------------
         Decal = 3
