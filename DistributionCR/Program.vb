@@ -1679,6 +1679,30 @@ SiErreur:
             wsExcel.Cells(2, Decal + j).Value = Categorie(j) & " " & UnAIDA(j)
         Next
 
+        '------------------Vérification des totaux---------------------------------
+        'Test = False
+        wsExcel = wbExcel.Worksheets("RESULTATS")
+        Decal = 5
+        If nbdenrees > 0 Then
+            Call TestSomme(nbdenrees)
+            Decal += nbdenrees + 3
+        End If
+        If NbPreparations > 0 Then
+            Call TestSomme(NbPreparations)
+            Decal += NbPreparations + 1
+        End If
+        If NbSalades > 0 Then
+            Call TestSomme(NbSalades)
+            Decal += NbSalades + 1
+        End If
+        If NbLaitages > 0 Then
+            Call TestSomme(NbLaitages)
+            Decal += NbLaitages + 2
+        End If
+        If NbDivers > 0 Then
+            Call TestSomme(NbDivers)
+        End If
+
         '------------Report des cumuls par catégorie, pour chaque famille---------------------
         For i = 1 To NbFamilles
             For k = 1 To NbCat
@@ -1854,12 +1878,18 @@ SiErreur:
         '  ----- test si une colonne est vide ------------------
         Dim j As Integer
         Dim AlphaColTri As String
+        Dim Total As Single
+        Dim i As Integer
 
         For j = 1 To nbden
-            If wsExcel.Cells(NbFamilles + 2, j + Decal).Value = 0 Then
-                AlphaColTri = AlphaCol(j + Decal)
+            Total = 0
+            For i = 1 To NbFamilles
+                Total += wsExcel.Cells(i + 1, j + Decal).Value
+            Next i
+            AlphaColTri = AlphaCol(j + Decal)
+            If Total = 0 Then
                 TexteMsg = "Ligne " & NbFamilles + 2 & "  La somme de la colonne " & AlphaColTri & " est nulle"
-                Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RAPPORT")
+                Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RESULTATS")
             End If
         Next j
 
