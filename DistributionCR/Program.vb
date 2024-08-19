@@ -132,9 +132,9 @@ Public Module Program
         Dim TestPanier As Single
         Dim AlphaColTri As String
         Dim AlphaColTri2 As String
-        Dim Col1 As String
-        Dim Col2 As String
-        Dim Col3 As String
+        Dim col1 As Integer
+        Dim col2 As Integer
+        Dim col3 As Integer
         Dim Mode1 As Integer
         Dim Mode2 As Integer
         Dim Mode3 As Integer
@@ -263,11 +263,11 @@ Public Module Program
             Exit Sub
         End If
 
-        Col1 = "B"      'Préparation du tri des données Viandes
+        col1 = 2            ' colonne B      Préparation du tri des données Viandes
         Mode1 = eSortOrder.Descending       'décroissant
-        Col2 = ""
+        col2 = 0
         Mode2 = eSortOrder.Ascending
-        Col3 = ""
+        col3 = 0
         Mode3 = eSortOrder.Ascending
         Call TriMultiple("VIANDES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 6, NbDenrees + 1)
 
@@ -320,11 +320,11 @@ Public Module Program
             Exit Sub
         End If
 
-        Col1 = "B"
+        col1 = 2            'colonne B
         Mode1 = eSortOrder.Ascending       'croissant
-        Col2 = ""
+        col2 = 0
         Mode2 = eSortOrder.Ascending
-        Col3 = ""
+        col3 = 0
         Mode3 = eSortOrder.Ascending
         Call TriMultiple("PREPARATIONS", Col1, Mode1, Col2, Mode2, Col3, Mode3, 8, NbPreparations + 1)
 
@@ -388,11 +388,11 @@ Public Module Program
             Exit Sub
         End If
 
-        Col1 = "B"
+        col1 = 2
         Mode1 = eSortOrder.Ascending       ' tri croissant
-        Col2 = ""
+        col2 = 0
         Mode2 = eSortOrder.Ascending
-        Col3 = ""
+        col3 = 0
         Mode3 = eSortOrder.Ascending
         Call TriMultiple("SALADES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 8, NbSalades + 1)
 
@@ -456,11 +456,11 @@ Public Module Program
             Exit Sub
         End If
 
-        Col1 = "C"
+        col1 = 3
         Mode1 = eSortOrder.Ascending       ' tri croissant
-        Col2 = "D"
+        col2 = 4
         Mode2 = eSortOrder.Descending
-        Col3 = "B"
+        col3 = 2
         Mode3 = eSortOrder.Ascending
         Call TriMultiple("LAITAGES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 6, NbLaitages + 1)
 
@@ -524,11 +524,11 @@ Public Module Program
             wsExcel.Cells(i + 1, 5).Value = Math.Round(wsExcel.Cells(i + 1, 3).Value + 0.51 * wsExcel.Cells(i + 1, 4).Value)
         Next
 
-        Col1 = "H"
+        col1 = 8                            'colonne H
         Mode1 = eSortOrder.Descending       ' tri croissant
-        Col2 = "E"
+        col2 = 5
         Mode2 = eSortOrder.Descending
-        Col3 = "J"
+        col3 = 10
         Mode3 = eSortOrder.Ascending
         Call TriMultiple("FAMILLES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 10, NbFamilles + 1)
 
@@ -639,15 +639,16 @@ Public Module Program
 
         'tri des familles
         wsExcel = wbExcel.Worksheets("FAMILLES")
-        Col1 = "G"
+        col1 = 7            'Col G
         Mode1 = eSortOrder.Descending       ' tri descending
-        Col2 = "F"
+        col2 = 6            'Col F
         Mode2 = eSortOrder.Descending
         If NbDenrees > 0 Then
-            Col3 = "I"      ' tri sur les écarts de poids (attribué - théorique) pour prioriser l'attribution des préparations
+            ' tri sur les écarts de poids (attribué - théorique) pour prioriser l'attribution des préparations
+            col3 = 9            'col I
             Mode3 = eSortOrder.Ascending
         Else
-            Col3 = "E"
+            Col3 = 5
             Mode3 = eSortOrder.Descending
         End If
         Call TriMultiple("FAMILLES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 10, NbFamilles + 1)
@@ -667,15 +668,15 @@ Public Module Program
 
         ' tri des résultats, de la même façon
         wsExcel = wbExcel.Worksheets("RESULTATS")
-        Col1 = "E"
+        col1 = 5
         Mode1 = eSortOrder.Descending       ' tri descending
-        Col2 = "D"
+        col2 = 4
         Mode2 = eSortOrder.Descending
         If NbDenrees > 0 Then
-            Col3 = AlphaCol(Decal)
+            col3 = Decal
             Mode3 = eSortOrder.Ascending
         Else
-            Col3 = "C"
+            col3 = 3
             Mode3 = eSortOrder.Descending
         End If
         k = NbDenrees + NbPreparations + NbSalades + NbLaitages + 30
@@ -769,11 +770,11 @@ Public Module Program
 
         'tri des familles
         wsExcel = wbExcel.Worksheets("FAMILLES")
-        Col1 = "E"
+        col1 = 5
         Mode1 = eSortOrder.Descending       ' tri descending
-        Col2 = "A"
+        col2 = 1
         Mode2 = eSortOrder.Ascending
-        Col3 = ""
+        col3 = 0
         Mode3 = eSortOrder.Ascending
 
         Call TriMultiple("FAMILLES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 10, NbFamilles + 1)
@@ -792,11 +793,11 @@ Public Module Program
 
         ' tri des résultats, de la même façon
         wsExcel = wbExcel.Worksheets("RESULTATS")
-        Col1 = "C"
+        col1 = 3
         Mode1 = eSortOrder.Descending       ' tri descending
-        Col2 = "A"
+        col2 = 1
         Mode2 = eSortOrder.Ascending
-        Col3 = ""
+        col3 = 0
         Mode3 = eSortOrder.Descending
 
         k = NbDenrees + NbPreparations + NbSalades + NbLaitages + 30
@@ -1330,8 +1331,8 @@ SiErreur:
         NumCol = total - 1
     End Function
 
-    Public Sub TriMultiple(Feuille As String, Col1 As String, Mode1 As eSortOrder, Col2 As String, Mode2 As eSortOrder,
-                    Col3 As String, Mode3 As eSortOrder, nbcol As Integer, nblignes As Integer)
+    Public Sub TriMultiple(Feuille As String, Col1 As Integer, Mode1 As eSortOrder, Col2 As Integer, Mode2 As eSortOrder,
+                    Col3 As Integer, Mode3 As eSortOrder, nbcol As Integer, nblignes As Integer)
 
         Dim h As Integer
         Dim AlphaColTri As String
@@ -1339,12 +1340,15 @@ SiErreur:
         wsExcel = wbExcel.Worksheets(Feuille)
         h = nbcol
         AlphaColTri = AlphaCol(h)
+        Col1 -= 1                   'Enlève -1 car les numéros de colonne débutent à 0: col 0 = col A
+        Col2 -= 1
+        Col3 -= 1
 
         Dim sortOptions = RangeSortOptions.Create()
         sortOptions.CompareOptions = CompareOptions.OrdinalIgnoreCase
-        Dim sortOptionsC1 = sortOptions.SortBy.Column(NumCol(Col1), Mode1)
-        Dim sortOptionsC2 = If(Col2 <> "", sortOptionsC1.ThenSortBy.Column(NumCol(Col2), Mode2), sortOptionsC1)
-        Dim sortOptionsC3 = If(Col3 <> "", sortOptionsC2.ThenSortBy.Column(NumCol(Col3), Mode3), sortOptionsC2)
+        Dim sortOptionsC1 = sortOptions.SortBy.Column(Col1, Mode1)
+        Dim sortOptionsC2 = If(Col2 >= 0, sortOptionsC1.ThenSortBy.Column(Col2, Mode2), sortOptionsC1)
+        Dim sortOptionsC3 = If(Col3 >= 0, sortOptionsC2.ThenSortBy.Column(Col3, Mode3), sortOptionsC2)
 
         wsExcel.Cells("A2:" & AlphaColTri & nblignes).Sort(sortOptions)
     End Sub
