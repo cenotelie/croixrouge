@@ -547,8 +547,9 @@ Public Module Program
         Next
         ' teste le nombre de bénéficiaires
         If NbTotViande = 0 Then
-            Call Reporting("FAMILLES", "ALERTE", " Le nombre de bénéficiaires est nul", "FAMILLES")
-            NbErreur += 1
+            Call Reporting("FAMILLES", "ARRET", " Le nombre de bénéficiaires est nul", "FAMILLES")
+            Call Colexit()
+            Exit Sub
         End If
 
         'calcul du poids théorique par familles = poids total reparti prorata nbre de bénéficiaires
