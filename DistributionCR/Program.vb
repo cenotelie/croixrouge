@@ -69,6 +69,9 @@ Public Module Program
         wsExcel.Cells(1, 1).Value = "FEUILLE"
         wsExcel.Cells(1, 2).Value = "Problème"
         wsExcel.Cells(1, 8).Value = "Criticité"
+        For i = 1 To 7
+            wsExcel.Columns(i).Width = 15
+        Next
         With wsExcel.Cells("A1:H1").Style
             .Fill.PatternType = ExcelFillStyle.Solid
             .Fill.BackgroundColor.Indexed = 13
@@ -108,7 +111,6 @@ Public Module Program
             End Select
         Loop
 
-        Console.WriteLine("Fermeture Excel, au revoir")
     End Sub
 
     Public Sub Colexit()
@@ -145,7 +147,7 @@ Public Module Program
         Dim EcartMaxi As Single
         Dim NumeMaxi As Integer
         Dim NbErreur As Integer
-
+        Dim StrOption As String
         '------------Viandes ----------------------------
         Dim ModuleViande As Single
         Dim Description(MaxDenrees) As String
@@ -263,16 +265,17 @@ Public Module Program
             Exit Sub
         End If
 
-        col1 = 2            ' colonne B      Préparation du tri des données Viandes
-        Mode1 = eSortOrder.Descending       'décroissant
-        col2 = 0
-        Mode2 = eSortOrder.Ascending
-        col3 = 0
-        Mode3 = eSortOrder.Ascending
-        Call TriMultiple("VIANDES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 6, NbDenrees + 1)
-
-        PTotViande = 0
         If NbDenrees > 0 Then
+            col1 = 2            ' colonne B      Préparation du tri des données Viandes
+            Mode1 = eSortOrder.Descending       'décroissant
+            col2 = 0
+            Mode2 = eSortOrder.Ascending
+            col3 = 0
+            Mode3 = eSortOrder.Ascending
+            Call TriMultiple("VIANDES", col1, Mode1, col2, Mode2, col3, Mode3, 6, NbDenrees + 1)
+
+            PTotViande = 0
+
             For i = 1 To NbDenrees
                 Description(i) = wsExcel.Cells(i + 1, 1).Value
                 PoidsTest = wsExcel.Cells(i + 1, 2).Value
@@ -320,17 +323,19 @@ Public Module Program
             Exit Sub
         End If
 
-        col1 = 2            'colonne B
-        Mode1 = eSortOrder.Ascending       'croissant
-        col2 = 0
-        Mode2 = eSortOrder.Ascending
-        col3 = 0
-        Mode3 = eSortOrder.Ascending
-        Call TriMultiple("PREPARATIONS", Col1, Mode1, Col2, Mode2, Col3, Mode3, 8, NbPreparations + 1)
-
-        PTotPrepa = 0
-        QuantTotPrepa = 0
         If NbPreparations > 0 Then
+
+            col1 = 2            'colonne B
+            Mode1 = eSortOrder.Ascending       'croissant
+            col2 = 0
+            Mode2 = eSortOrder.Ascending
+            col3 = 0
+            Mode3 = eSortOrder.Ascending
+            Call TriMultiple("PREPARATIONS", col1, Mode1, col2, Mode2, col3, Mode3, 8, NbPreparations + 1)
+
+            PTotPrepa = 0
+            QuantTotPrepa = 0
+
             For i = 1 To NbPreparations
                 Preparation(i) = wsExcel.Cells(i + 1, 1).Value
                 TestPrepa = wsExcel.Cells(i + 1, 2).Value
@@ -388,17 +393,19 @@ Public Module Program
             Exit Sub
         End If
 
-        col1 = 2
-        Mode1 = eSortOrder.Ascending       ' tri croissant
-        col2 = 0
-        Mode2 = eSortOrder.Ascending
-        col3 = 0
-        Mode3 = eSortOrder.Ascending
-        Call TriMultiple("SALADES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 8, NbSalades + 1)
-
-        PTotSalad = 0
-        QuantTotSalad = 0
         If NbSalades > 0 Then
+
+            col1 = 2
+            Mode1 = eSortOrder.Ascending       ' tri croissant
+            col2 = 0
+            Mode2 = eSortOrder.Ascending
+            col3 = 0
+            Mode3 = eSortOrder.Ascending
+            Call TriMultiple("SALADES", col1, Mode1, col2, Mode2, col3, Mode3, 8, NbSalades + 1)
+
+            PTotSalad = 0
+            QuantTotSalad = 0
+
             wsExcel.Cells(1, 8).Value = "Eqv Poids"
             For i = 1 To NbSalades
                 Salade(i) = wsExcel.Cells(i + 1, 1).Value
@@ -456,20 +463,20 @@ Public Module Program
             Exit Sub
         End If
 
-        col1 = 3
-        Mode1 = eSortOrder.Ascending       ' tri croissant
-        col2 = 4
-        Mode2 = eSortOrder.Descending
-        col3 = 2
-        Mode3 = eSortOrder.Ascending
-        Call TriMultiple("LAITAGES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 6, NbLaitages + 1)
-
-        PtotLait = 0
-        PtotZeu = 0
-
         If NbLaitages > 0 Then
-            For i = 1 To NbLaitages
 
+            col1 = 3
+            Mode1 = eSortOrder.Ascending       ' tri croissant
+            col2 = 4
+            Mode2 = eSortOrder.Descending
+            col3 = 2
+            Mode3 = eSortOrder.Ascending
+            Call TriMultiple("LAITAGES", col1, Mode1, col2, Mode2, col3, Mode3, 6, NbLaitages + 1)
+
+            PtotLait = 0
+            PtotZeu = 0
+
+            For i = 1 To NbLaitages
                 Laitage(i) = wsExcel.Cells(i + 1, 1).Value
                 PoidsTest = wsExcel.Cells(i + 1, 2).Value
                 If VarType(wsExcel.Cells(i + 1, 2).Value) = 5 Then
@@ -905,7 +912,7 @@ Public Module Program
 
             '--------repartition des impairs------------------------------
             For j = 1 To NbLaitages
-                If ResteQuant(j) > 1 And CatLait(j) <> "BCF" And CatLait(j) <> "ZEU" Then
+                If ResteQuant(j) > 0 And CatLait(j) <> "BCF" And CatLait(j) <> "ZEU" Then
                     Do While ResteQuant(j) > 0
                         Saut = False
                         For i = 1 To NbFamilles
@@ -1573,7 +1580,6 @@ SiErreur:
 
             Call ListeCategorie(nbdenrees, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
         UnitAIDA, Categorie, CatAIDA, UnAIDA, PrixAIDA, PrixListe)
-
         End If
 
         '------------liste des codes plats prepares---------------------------------------
@@ -1689,19 +1695,19 @@ SiErreur:
         wsExcel = wbExcel.Worksheets("RESULTATS")
         Decal = 5
         If nbdenrees > 0 Then
-            Call TestSomme(nbdenrees)
+            Call TestSomme2(nbdenrees)
             Decal += nbdenrees + 3
         End If
         If NbPreparations > 0 Then
-            Call TestSomme(NbPreparations)
+            Call TestSomme2(NbPreparations)
             Decal += NbPreparations + 1
         End If
         If NbSalades > 0 Then
-            Call TestSomme(NbSalades)
+            Call TestSomme2(NbSalades)
             Decal += NbSalades + 1
         End If
         If NbLaitages > 0 Then
-            Call TestSomme(NbLaitages)
+            Call TestSomme2(NbLaitages)
             Decal += NbLaitages + 2
         End If
         If NbDivers > 0 Then
@@ -1879,6 +1885,43 @@ SiErreur:
 
     End Sub
 
+    Sub TestSomme2(nbden As Integer)
+        '  ----- teste les quantités attribuées------------------
+        Dim j As Integer
+        Dim AlphaColTri As String
+        Dim Total As Single
+        Dim i As Integer
+        Dim Intitule() As String
+        Dim Complet As String
+        Dim Separ As Char = "("
+        Dim Quant As Single
+        Dim Brut As String
+
+        For j = 1 To nbden
+            Total = 0
+            ' ------ décodage de l'entête de colonne pour retrouver la quantité déclarée
+            Complet = wsExcel.Cells(1, j + Decal).Value
+            Intitule = Complet.Split(Separ)
+            Brut = Intitule(1)
+            Quant = Single.Parse(Brut.Remove(Brut.Length - 1, 1))
+            ' ------ calcule le total des quantités attribuées ------------
+            For i = 1 To NbFamilles
+                Total += wsExcel.Cells(i + 1, j + Decal).Value
+            Next i
+            ' ----- teste la valeur --------------------------------
+            AlphaColTri = AlphaCol(j + Decal)
+            Select Case Total
+                Case 0      ' valeur nulle, rien de documenté
+                    TexteMsg = "La somme de la colonne " & AlphaColTri & " est nulle"
+                    Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RESULTATS")
+                Case Quant      ' valeur égale à la quantité déclarée, RAS
+                Case Else       ' valeur différente = alerte
+                    TexteMsg = "Col " & AlphaColTri & " " & Intitule(0) & ":  Somme= " & Total & " différente de la quantité déclarée" & Quant
+                    Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RESULTATS")
+            End Select
+        Next j
+
+    End Sub
     Sub TestSomme(nbden As Integer)
         '  ----- test si une colonne est vide ------------------
         Dim j As Integer
@@ -1893,7 +1936,7 @@ SiErreur:
             Next i
             AlphaColTri = AlphaCol(j + Decal)
             If Total = 0 Then
-                TexteMsg = "Ligne " & NbFamilles + 2 & "  La somme de la colonne " & AlphaColTri & " est nulle"
+                TexteMsg = "La somme de la colonne " & AlphaColTri & " est nulle"
                 Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RESULTATS")
             End If
         Next j
