@@ -1896,14 +1896,18 @@ SiErreur:
         Dim Separ As Char = "("
         Dim Quant As Single
         Dim Brut As String
+        Dim NbOcc As Integer
 
         For j = 1 To nbden
             Total = 0
             ' ------ décodage de l'entête de colonne pour retrouver la quantité déclarée
-            Complet = wsExcel.Cells(1, j + Decal).Value
-            Intitule = Complet.Split(Separ)
-            Brut = Intitule(1)
-            Quant = Single.Parse(Brut.Remove(Brut.Length - 1, 1))
+            Complet = wsExcel.Cells(1, j + Decal).Value             ' reprend l'entête de colonne
+            NbOcc = CalculateOccurenceNumber(Complet, Separ)        ' compte le nombre de séparateur dans l'entête
+            Intitule = Complet.Split(Separ)                         ' éclate l'entête avec le séparateur
+            Brut = Intitule(NbOcc)                                  ' prend le string après le dernier séparateur
+            Quant = Single.Parse(Brut.Remove(Brut.Length - 1, 1))   ' conversion du string en quantité après avoir enlevé la parenthèse
+            'TexteMsg = Complet & " nbocc= " & NbOcc & " brut " & Brut & " quant " & Quant
+            'Call Reporting("RESULTATS", " ", TexteMsg, "RESULTATS")
             ' ------ calcule le total des quantités attribuées ------------
             For i = 1 To NbFamilles
                 Total += wsExcel.Cells(i + 1, j + Decal).Value
@@ -1922,6 +1926,18 @@ SiErreur:
         Next j
 
     End Sub
+    Function CalculateOccurenceNumber(strString As String, strCharacter As String) As Integer
+
+        Dim intPosition As Integer
+
+        intPosition = 1
+
+        While intPosition <= Len(strString) And strCharacter <> "" And InStr(intPosition, strString, strCharacter) <> 0
+
+            intPosition = InStr(intPosition, strString, strCharacter) + 1
+            CalculateOccurenceNumber = CalculateOccurenceNumber + 1
+        End While
+    End Function
     Sub TestSomme(nbden As Integer)
         '  ----- test si une colonne est vide ------------------
         Dim j As Integer
