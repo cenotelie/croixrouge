@@ -8,6 +8,10 @@ Imports OfficeOpenXml.Style
 Imports SkiaSharp
 
 Public Module Program
+    'Arguments d'entrée
+    Private argFileName As String
+    Private argMode As Integer
+
     'Déclaration des variables  Excel
     Public appExcel As ExcelPackage          'Application Excel
     Public wbExcel As ExcelWorkbook          'Classeur Excel
@@ -46,15 +50,10 @@ Public Module Program
         'Initialisation de EPPlus
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial
 
-        Dim StrOption As String
-        Dim TestOption As Boolean
-        Console.WriteLine("  D I S T R I B U T I O N    C R O I X - R O U G E")
-        Console.WriteLine("******************************************************")
-        Console.WriteLine("Donner le chemin reseau du fichier")
-        StrInput = Console.ReadLine()
+        Call ReadArgs()
 
         'Ouverture de l'application Excel
-        appExcel = (New ExcelPackage(New FileInfo(StrInput)))
+        appExcel = (New ExcelPackage(New FileInfo(argFileName)))
         wbExcel = appExcel.Workbook
 
         If FeuilleExiste("RAPPORT") = True Then
@@ -78,38 +77,62 @@ Public Module Program
             .Border.Bottom.Style = ExcelBorderStyle.Medium
         End With
 
-        Console.WriteLine("   ")
-        Console.WriteLine("Ouverture du fichier Excel")
+        nbReport = 1
+
+        Select Case argMode
+            Case 1
+                Call Repartition()
+            Case 2
+                Call MAJ()
+            Case 3
+                Call AIDA()
+            Case Else
+                Call Colexit()
+        End Select
+    End Sub
+
+    Public Sub ReadArgs()
+        Dim cliArgs = Environment.GetCommandLineArgs()
+        If cliArgs.Length = 3 Then
+            argFileName = cliArgs.GetValue(1)
+            argMode = CInt(cliArgs.GetValue(2))
+            Return
+        End If
+
+        'demande à l'utilisateur
+        Console.WriteLine("  D I S T R I B U T I O N    C R O I X - R O U G E")
+        Console.WriteLine("******************************************************")
+        Console.WriteLine("Donner le chemin reseau du fichier")
+        argFileName = Console.ReadLine()
+
+        Console.WriteLine()
         Console.WriteLine("Choisir l'option de calcul:")
         Console.WriteLine("Répartition: tapez 1")
         Console.WriteLine("Mise à jour: tapez 2")
         Console.WriteLine("AIDA       : tapez 3")
-        StrOption = Console.ReadLine()
-        TestOption = False
-
-        nbReport = 1
+        Dim StrOption As String = Console.ReadLine()
+        Dim TestOption As Boolean = False
 
         Do Until TestOption = True
             Select Case StrOption
                 Case "1"
+                    argMode = 1
                     TestOption = True
-                    Call Repartition()
                 Case "2"
+                    argMode = 2
                     TestOption = True
-                    Call MAJ()
                 Case "3"
+                    argMode = 3
                     TestOption = True
-                    Call AIDA()
                 Case "Exit"
+                    argMode = 0
                     TestOption = True
-                    Call Colexit()
                 Case Else
                     Console.WriteLine("Option non reconnue, tapez 1, 2 ou 3")
                     Console.WriteLine("Pour arrêter, tapez Exit")
                     StrOption = Console.ReadLine()
             End Select
         Loop
-
     End Sub
 
     Public Sub Colexit()
@@ -146,7 +169,6 @@ Public Module Program
         Dim EcartMaxi As Single
         Dim NumeMaxi As Integer
         Dim NbErreur As Integer
-        Dim StrOption As String
         '------------Viandes ----------------------------
         Dim ModuleViande As Single
         Dim Description(MaxDenrees) As String
@@ -536,7 +558,7 @@ Public Module Program
         Mode2 = eSortOrder.Descending
         col3 = 10
         Mode3 = eSortOrder.Ascending
-        Call TriMultiple("FAMILLES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 10, NbFamilles + 1)
+        Call TriMultiple("FAMILLES", col1, Mode1, col2, Mode2, col3, Mode3, 10, NbFamilles + 1)
 
         NbTotViande = 0
         For i = 1 To NbFamilles
@@ -655,10 +677,10 @@ Public Module Program
             col3 = 9            'col I
             Mode3 = eSortOrder.Ascending
         Else
-            Col3 = 5
+            col3 = 5
             Mode3 = eSortOrder.Descending
         End If
-        Call TriMultiple("FAMILLES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 10, NbFamilles + 1)
+        Call TriMultiple("FAMILLES", col1, Mode1, col2, Mode2, col3, Mode3, 10, NbFamilles + 1)
 
         'on relit les familles après le tri
         For i = 1 To NbFamilles
@@ -687,7 +709,7 @@ Public Module Program
             Mode3 = eSortOrder.Descending
         End If
         k = NbDenrees + NbPreparations + NbSalades + NbLaitages + 30
-        Call TriMultiple("RESULTATS", Col1, Mode1, Col2, Mode2, Col3, Mode3, k, NbFamilles + 2)
+        Call TriMultiple("RESULTATS", col1, Mode1, col2, Mode2, col3, Mode3, k, NbFamilles + 2)
 
         If NbPreparations > 0 Then
             wsExcel = wbExcel.Worksheets("RESULTATS")
@@ -784,7 +806,7 @@ Public Module Program
         col3 = 0
         Mode3 = eSortOrder.Ascending
 
-        Call TriMultiple("FAMILLES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 10, NbFamilles + 1)
+        Call TriMultiple("FAMILLES", col1, Mode1, col2, Mode2, col3, Mode3, 10, NbFamilles + 1)
 
         'on relit les familles après le tri
         For i = 1 To NbFamilles
@@ -809,7 +831,7 @@ Public Module Program
 
         k = NbDenrees + NbPreparations + NbSalades + NbLaitages + 30
 
-        Call TriMultiple("RESULTATS", Col1, Mode1, Col2, Mode2, Col3, Mode3, k, NbFamilles + 2)
+        Call TriMultiple("RESULTATS", col1, Mode1, col2, Mode2, col3, Mode3, k, NbFamilles + 2)
 
         If NbLaitages > 0 Then
             PtotLait = 0
