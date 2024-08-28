@@ -1,12 +1,11 @@
 
 Option Explicit On
-Imports System.Diagnostics.Tracing
 Imports System.Globalization
 Imports System.IO
 Imports OfficeOpenXml
 Imports OfficeOpenXml.Sorting
 Imports OfficeOpenXml.Style
-
+Imports SkiaSharp
 
 Public Module Program
     'Déclaration des variables  Excel
@@ -1875,7 +1874,7 @@ SiErreur:
             dW = 91                               ' largeur de l'image
             dH = 213                           ' hauteur de l'image
 
-            Dim fileName = "Image" & j & ".bmp"
+            Dim fileName = "Image" & j & ".png"
             Dim picture = wsExcel.Drawings.AddPicture(fileName, Path.Combine(CheminBureau, fileName))
             picture.SetSize(dW, dH)
             picture.SetPosition(dT, dL)
@@ -2108,14 +2107,25 @@ SiErreur:
         ' *******************************************************************
         ' création du graphique
         '********************************************************************
-        Dim newBitmap As New Bitmap(IntLargeur, IntHauteur) 'créons un BitMap
-        Dim g As Graphics = Graphics.FromImage(newBitmap) 'créons un Graphics et y mettre le BitMap
+        Dim newBitmap As New SKBitmap(IntHauteur, IntLargeur, SKColorType.Rgba8888, SKAlphaType.Premul) 'créons un BitMap vertical (inversion de hauteur et largeur)
+        Dim g As New SKCanvas(newBitmap) 'créons un Graphics et y mettre le BitMap
+        'rotation de 270 de tous les éléments à dessiner
+        g.Translate(IntHauteur / 2, IntLargeur / 2)
+        g.RotateDegrees(-90)
+        g.Translate(-IntLargeur / 2, -IntHauteur / 2)
 
-        Dim blackPen As New Pen(Color.Black, 5)    'créer un stylet noir d'épaisseur 
-        ' Dim YeloPen As New Pen(Color.Yellow, 5)
-        Dim WhitePen As New Pen(Color.White, 5)
+        Dim blackPen As New SKPaint() 'créer un stylet noir d'épaisseur
+        With blackPen
+            .Color = New SKColor(0, 0, 0, 255)
+            .StrokeWidth = 5
+        End With
+        Dim WhitePen As New SKPaint()
+        With WhitePen
+            .Color = New SKColor(255, 255, 255, 255)
+            .StrokeWidth = 5
+        End With
 
-        g.FillRectangle(New SolidBrush(Color.White), 0, 0, IntLargeur, IntHauteur)
+        g.Clear(New SKColor(255, 255, 255, 255))
 
         X1 = IntMargeGauche
         X2 = X1
@@ -2124,32 +2134,36 @@ SiErreur:
 
         '------Création de la zone de texte ------------------------------------------
 
-        Dim drawFont As New System.Drawing.Font("Arial", 35)
-        Dim drawBrush As New System.Drawing.SolidBrush(System.Drawing.Color.Black)
+        ' Dim drawFont As New System.Drawing.Font("Arial", 35)
+        ' Dim drawBrush As New System.Drawing.SolidBrush(System.Drawing.Color.Black)
 
-        g.DrawString(Contenu, drawFont, drawBrush, 250, 23)
+        Dim drawFont As New SKFont(SKTypeface.FromFamilyName("Arial"), 35)
+        Dim textPaint As New SKPaint(drawFont)
+        textPaint.Color = New SKColor(0, 0, 0, 255)
+        g.DrawText(Contenu, 250, 50, textPaint)
 
         '-----Traçage du code-barres----------------------------------------------
         For i = 1 To Len(strCodeBarres)
             strTypeModule = Mid(strCodeBarres, i, 1)                                'Type de module, barre ou espace, à tracer
             Select Case strTypeModule
                 Case "1"
-                    g.DrawLine(blackPen, X1, Y1, X2, Y2)
+                    g.DrawLine(X1, Y1, X2, Y2, blackPen)
                     X1 += IntLargModule
                     X2 = X1
 
                 Case "0"
-                    g.DrawLine(WhitePen, X1, Y1, X2, Y2)
+                    g.DrawLine(X1, Y1, X2, Y2, WhitePen)
                     X1 += IntLargModule
                     X2 = X1
             End Select
 
         Next i
 
-        'PictureBox1.Image = newBitmap
-        newBitmap.RotateFlip(RotateFlipType.Rotate270FlipNone)      'Rotation de l'image verticalement si besoin
-        'PictureBox1.Image.Save(Cheminbureau + "\Image" & j & ".bmp")
-        newBitmap.Save(Path.Combine(CheminBureau, "Image" & j & ".bmp"))
+        Using data = newBitmap.Encode(SKEncodedImageFormat.Png, 100)
+            Using writer = File.OpenWrite(Path.Combine(CheminBureau, "Image" & j & ".png"))
+                data.SaveTo(writer)
+            End Using
+        End Using
 
     End Sub
     Public Function Code128(strChaine As String) As String
