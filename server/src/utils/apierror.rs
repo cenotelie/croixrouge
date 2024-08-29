@@ -64,6 +64,20 @@ where
     }
 }
 
+/// Specializes an API error with additional details
+pub fn specialize(original: ApiError, details: String) -> ApiError {
+    ApiError {
+        details: Some(details),
+        ..original
+    }
+}
+
+/// Error when the operation failed in the backend
+#[must_use]
+pub fn error_backend_failure() -> ApiError {
+    ApiError::new(500, "The operation failed in the backend.", None)
+}
+
 /// Error when the requested user cannot be found
 #[must_use]
 pub fn error_not_found() -> ApiError {

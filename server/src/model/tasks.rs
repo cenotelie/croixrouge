@@ -5,15 +5,19 @@
 //! Data types for tasks
 
 use std::path::PathBuf;
+use std::process::Stdio;
 
 use chrono::{Local, NaiveDateTime};
 use serde_derive::{Deserialize, Serialize};
+use tokio::process::Command;
 
-use crate::utils::apierror::ApiError;
+use crate::utils::apierror::{error_backend_failure, specialize, ApiError};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskInputs {
+    #[serde(rename = "fileName")]
     pub file_name: String,
+    #[serde(rename = "fileContent")]
     pub file_content: Vec<u8>,
     pub mode: i32,
 }
@@ -37,6 +41,7 @@ impl TaskStatus {
 pub struct Task {
     pub identifier: String,
     pub status: TaskStatus,
+    #[serde(rename = "lastUpdate")]
     pub last_update: NaiveDateTime,
     pub inputs: TaskInputs,
     pub output: String,
@@ -75,5 +80,26 @@ impl Task {
         path.push("payload.xlsx");
         let content = tokio::fs::read(&path).await?;
         Ok(content)
+    }
+
+    /// Executes this task
+    pub async fn execute(&self) -> Result<(), ApiError> {
+        let mut path = PathBuf::from("/home/croixrouge");
+        path.push("tasks");
+        path.push(&self.identifier);
+        let command = Command::new("/home/croixrouge/payload/DistributionCR")
+            .current_dir(path)
+            .args(["payload.xlsx", &self.inputs.mode.to_string()])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .await?;
+        if command.status.success() {
+            Ok(())
+        } else {
+            let mut details = String::from_utf8(command.stdout)?;
+            details.push_str(&String::from_utf8(command.stderr)?);
+            Err(specialize(error_backend_failure(), details))
+        }
     }
 }

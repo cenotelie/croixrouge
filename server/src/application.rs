@@ -5,7 +5,6 @@
 //! Main application
 
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use log::error;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -26,7 +25,7 @@ pub struct Application {
 
 pub struct TaskData {
     pub task: Task,
-    pub observer: Option<Sender<TaskStatus>>,
+    pub observer: Option<Sender<Task>>,
 }
 
 const TASK_WORKER_CHANNEL_SIZE: usize = 10;
@@ -62,9 +61,23 @@ impl Application {
         Ok(task)
     }
 
+    /// Gets a specific task
+    pub fn get_task(&self, task_id: &str) -> Result<Task, ApiError> {
+        let task = self
+            .tasks
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|d| d.task.identifier == task_id)
+            .ok_or_else(error_not_found)?
+            .task
+            .clone();
+        Ok(task)
+    }
+
     /// Starts observing the progress of a task
-    pub async fn observe_task(&self, task_id: &str) -> Result<Receiver<TaskStatus>, ApiError> {
-        let (receiver, update) = {
+    pub async fn observe_task(&self, task_id: &str) -> Result<Receiver<Task>, ApiError> {
+        let (sender, receiver, task) = {
             let mut lock = self.tasks.lock().unwrap();
             let data = lock
                 .iter_mut()
@@ -72,21 +85,15 @@ impl Application {
                 .ok_or_else(error_not_found)?;
 
             let (sender, receiver) = tokio::sync::mpsc::channel(4);
-            if data.task.status.is_final() {
-                (receiver, Some((sender, data.task.status)))
-            } else {
-                data.observer = Some(sender.clone());
-                (receiver, None)
-            }
+            data.observer = Some(sender.clone());
+            (sender, receiver, data.task.clone())
         };
-        if let Some((sender, status)) = update {
-            sender.send(status).await?;
-        }
+        sender.send(task).await?;
         Ok(receiver)
     }
 
     /// Update a task's status
-    async fn on_task_update(&self, task_id: &str, status: TaskStatus) -> Result<(), ApiError> {
+    async fn on_task_update(&self, task_id: &str, status: TaskStatus, output: Option<&str>) -> Result<(), ApiError> {
         let sender = self
             .tasks
             .lock()
@@ -95,15 +102,19 @@ impl Application {
             .find(|d| d.task.identifier == task_id)
             .and_then(|data| {
                 data.task.status = status;
+                if let Some(output) = output {
+                    data.task.output.push_str(output);
+                }
                 data.task.touch();
-                if status.is_final() {
+                (if status.is_final() {
                     data.observer.take()
                 } else {
                     data.observer.clone()
-                }
+                })
+                .map(|s| (s, data.task.clone()))
             });
-        if let Some(sender) = sender {
-            sender.send(status).await?;
+        if let Some((sender, task)) = sender {
+            sender.send(task).await?;
         }
         Ok(())
     }
@@ -138,25 +149,22 @@ async fn tasks_worker(app: Arc<Application>, mut task_receiver: Receiver<String>
             }
         };
         // set final status
-        let _ = app.on_task_update(&task_id, status).await;
+        let _ = app.on_task_update(&task_id, status, None).await;
     }
 }
 
 async fn tasks_worker_task(app: &Application, task_id: &str) -> Result<(), ApiError> {
-    let _task = app
-        .tasks
-        .lock()
-        .unwrap()
-        .iter()
-        .find_map(|d| {
-            if d.task.identifier == task_id {
-                Some(d.task.clone())
-            } else {
-                None
-            }
-        })
-        .ok_or_else(error_not_found)?;
-    app.on_task_update(task_id, TaskStatus::Executing).await?;
-    tokio::time::sleep(Duration::from_secs(5)).await;
-    Ok(())
+    let task = app.get_task(task_id)?;
+    app.on_task_update(task_id, TaskStatus::Executing, None).await?;
+    let result = task.execute().await;
+    match &result {
+        Ok(()) => {
+            app.on_task_update(task_id, TaskStatus::Completed, None).await?;
+        }
+        Err(e) => {
+            app.on_task_update(task_id, TaskStatus::Failed, Some(e.details.as_deref().unwrap_or_default()))
+                .await?;
+        }
+    }
+    result
 }

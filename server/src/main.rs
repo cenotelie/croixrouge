@@ -56,6 +56,7 @@ async fn main_serve_app(application: Arc<Application>) -> Result<(), std::io::Er
             "/api/v1",
             Router::new()
                 .route("/tasks", post(crate::routes::launch_task))
+                .route("/tasks/:task_id", get(crate::routes::get_task))
                 .route("/tasks/:task_id/updates", get(crate::routes::observe_task))
                 .route("/tasks/:task_id/download", get(crate::routes::download_task_result)),
         )

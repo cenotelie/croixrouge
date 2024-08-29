@@ -21,23 +21,13 @@
       </div>
   </nav>
 </header>
-<body class="bg-white dark:bg-gray-800 content-center">
+<body onload="doPageLoad()" class="bg-white dark:bg-gray-800 content-center">
   <section class="bg-gray-50 dark:bg-gray-900 py-4 max-w-screen-lg mx-auto">
     <div class="p-6 space-y-4 md:space-y-6 sm:p-8 w-full">
       <h1 class="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl dark:text-white" style="text-align: center;">
-          Calcul de distribution
+          Tâche
       </h1>
-      <form class="space-y-4 md:space-y-6" onsubmit="onClickOk(); return false;" action="">
-        <label for="input-file" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Fichier à traiter</label>
-        <input id="input-file" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400" type="file">
-        <label for="input-mode" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Mode</label>
-        <select id="input-mode" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-          <option value="1" selected>Répartition</option>
-          <option value="2">Mise à jour</option>
-          <option value="3">AIDA</option>
-        </select>
-        <button type="button" class="w-full text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800" onsubmit="onClickOk()" onclick="onClickOk()">Envoyer</button>
-      </form>
+      
     </div>
   </section>
 </body>
@@ -47,28 +37,20 @@
   </div>
 </footer>
 
+<script src="/index.js"></script>
+<script src="/stream.js"></script>
 <script>
   document.getElementById("year").appendChild(document.createTextNode(new Date(Date.now()).getFullYear()));
 
-  function onClickOk() {
-    const dropZone = document.getElementById("input-file");
-    const files = dropZone.files;
-    if (files.length === 0) { return; }
-    const file = files[0];
-    const mode = document.getElementById("input-mode").value;
+  function doPageLoad() {
+    const args = getQueryParameters(window.location.search);
+    const taskId = args.id;
+    const source = new StreamEventSource(`/api/v1/tasks/${taskId}/updates`, null);
+    source.map(message => JSON.parse(message.data)).then(onUpdate).catch(() => {});
+  }
 
-    fetch(`/api/v1/tasks?name=${encodeURIComponent(file.name)}&mode=${mode}`, {
-      method: "POST",
-      body: file
-    }).then((response) => {
-      if (response.status !== 200) {
-        response.text().then(text => console.error(text));
-      } else {
-        return response.json();
-      }
-    }).then((task) => {
-      window.location.assign(`/task.html?id=${task.identifier}`);
-    });
+  function onUpdate(task) {
+    console.log(task);
   }
 </script>
 </html>

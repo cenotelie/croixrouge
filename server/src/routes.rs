@@ -120,6 +120,10 @@ pub async fn launch_task(
     )
 }
 
+pub async fn get_task(State(state): State<Arc<AxumState>>, Path(task_id): Path<String>) -> ApiResult<Task> {
+    response(state.application.get_task(&task_id))
+}
+
 pub async fn observe_task(
     State(state): State<Arc<AxumState>>,
     Path(task_id): Path<String>,
