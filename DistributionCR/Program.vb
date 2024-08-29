@@ -147,7 +147,7 @@ Public Module Program
         Dim EcartMaxi As Single
         Dim NumeMaxi As Integer
         Dim NbErreur As Integer
-        Dim StrOption As String
+
         '------------Viandes ----------------------------
         Dim ModuleViande As Single
         Dim Description(MaxDenrees) As String
@@ -1695,7 +1695,7 @@ SiErreur:
         wsExcel = wbExcel.Worksheets("RESULTATS")
         Decal = 5
         If nbdenrees > 0 Then
-            Call TestSomme2(nbdenrees)
+            Call TestSomme2(nbdenrees)      ' teste si somme des quant. attribuées = quant. déclarée et si somme non nulle
             Decal += nbdenrees + 3
         End If
         If NbPreparations > 0 Then
@@ -1711,7 +1711,7 @@ SiErreur:
             Decal += NbLaitages + 2
         End If
         If NbDivers > 0 Then
-            Call TestSomme(NbDivers)
+            Call TestSomme(NbDivers)        'pas de quantité déclarée, test si somme nulle seulement
         End If
 
         '------------Report des cumuls par catégorie, pour chaque famille---------------------
@@ -1900,18 +1900,22 @@ SiErreur:
 
         For j = 1 To nbden
             Total = 0
+
             ' ------ décodage de l'entête de colonne pour retrouver la quantité déclarée
             Complet = wsExcel.Cells(1, j + Decal).Value             ' reprend l'entête de colonne
             NbOcc = CalculateOccurenceNumber(Complet, Separ)        ' compte le nombre de séparateur dans l'entête
             Intitule = Complet.Split(Separ)                         ' éclate l'entête avec le séparateur
             Brut = Intitule(NbOcc)                                  ' prend le string après le dernier séparateur
             Quant = Single.Parse(Brut.Remove(Brut.Length - 1, 1))   ' conversion du string en quantité après avoir enlevé la parenthèse
+
             'TexteMsg = Complet & " nbocc= " & NbOcc & " brut " & Brut & " quant " & Quant
             'Call Reporting("RESULTATS", " ", TexteMsg, "RESULTATS")
+
             ' ------ calcule le total des quantités attribuées ------------
             For i = 1 To NbFamilles
                 Total += wsExcel.Cells(i + 1, j + Decal).Value
             Next i
+
             ' ----- teste la valeur --------------------------------
             AlphaColTri = AlphaCol(j + Decal)
             Select Case Total
@@ -1929,11 +1933,8 @@ SiErreur:
     Function CalculateOccurenceNumber(strString As String, strCharacter As String) As Integer
 
         Dim intPosition As Integer
-
         intPosition = 1
-
         While intPosition <= Len(strString) And strCharacter <> "" And InStr(intPosition, strString, strCharacter) <> 0
-
             intPosition = InStr(intPosition, strString, strCharacter) + 1
             CalculateOccurenceNumber = CalculateOccurenceNumber + 1
         End While
