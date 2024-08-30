@@ -1,14 +1,17 @@
 
 Option Explicit On
-Imports System.Diagnostics.Tracing
 Imports System.Globalization
 Imports System.IO
 Imports OfficeOpenXml
 Imports OfficeOpenXml.Sorting
 Imports OfficeOpenXml.Style
-
+Imports SkiaSharp
 
 Public Module Program
+    'Arguments d'entrée
+    Private argFileName As String
+    Private argMode As Integer
+
     'Déclaration des variables  Excel
     Public appExcel As ExcelPackage          'Application Excel
     Public wbExcel As ExcelWorkbook          'Classeur Excel
@@ -47,15 +50,10 @@ Public Module Program
         'Initialisation de EPPlus
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial
 
-        Dim StrOption As String
-        Dim TestOption As Boolean
-        Console.WriteLine("  D I S T R I B U T I O N    C R O I X - R O U G E")
-        Console.WriteLine("******************************************************")
-        Console.WriteLine("Donner le chemin reseau du fichier")
-        StrInput = Console.ReadLine()
+        Call ReadArgs()
 
         'Ouverture de l'application Excel
-        appExcel = (New ExcelPackage(New FileInfo(StrInput)))
+        appExcel = (New ExcelPackage(New FileInfo(argFileName)))
         wbExcel = appExcel.Workbook
 
         If FeuilleExiste("RAPPORT") = True Then
@@ -79,38 +77,62 @@ Public Module Program
             .Border.Bottom.Style = ExcelBorderStyle.Medium
         End With
 
-        Console.WriteLine("   ")
-        Console.WriteLine("Ouverture du fichier Excel")
+        nbReport = 1
+
+        Select Case argMode
+            Case 1
+                Call Repartition()
+            Case 2
+                Call MAJ()
+            Case 3
+                Call AIDA()
+            Case Else
+                Call Colexit()
+        End Select
+    End Sub
+
+    Public Sub ReadArgs()
+        Dim cliArgs = Environment.GetCommandLineArgs()
+        If cliArgs.Length = 3 Then
+            argFileName = cliArgs.GetValue(1)
+            argMode = CInt(cliArgs.GetValue(2))
+            Return
+        End If
+
+        'demande à l'utilisateur
+        Console.WriteLine("  D I S T R I B U T I O N    C R O I X - R O U G E")
+        Console.WriteLine("******************************************************")
+        Console.WriteLine("Donner le chemin reseau du fichier")
+        argFileName = Console.ReadLine()
+
+        Console.WriteLine()
         Console.WriteLine("Choisir l'option de calcul:")
         Console.WriteLine("Répartition: tapez 1")
         Console.WriteLine("Mise à jour: tapez 2")
         Console.WriteLine("AIDA       : tapez 3")
-        StrOption = Console.ReadLine()
-        TestOption = False
-
-        nbReport = 1
+        Dim StrOption As String = Console.ReadLine()
+        Dim TestOption As Boolean = False
 
         Do Until TestOption = True
             Select Case StrOption
                 Case "1"
+                    argMode = 1
                     TestOption = True
-                    Call Repartition()
                 Case "2"
+                    argMode = 2
                     TestOption = True
-                    Call MAJ()
                 Case "3"
+                    argMode = 3
                     TestOption = True
-                    Call AIDA()
                 Case "Exit"
+                    argMode = 0
                     TestOption = True
-                    Call Colexit()
                 Case Else
                     Console.WriteLine("Option non reconnue, tapez 1, 2 ou 3")
                     Console.WriteLine("Pour arrêter, tapez Exit")
                     StrOption = Console.ReadLine()
             End Select
         Loop
-
     End Sub
 
     Public Sub Colexit()
@@ -147,7 +169,6 @@ Public Module Program
         Dim EcartMaxi As Single
         Dim NumeMaxi As Integer
         Dim NbErreur As Integer
-
         '------------Viandes ----------------------------
         Dim ModuleViande As Single
         Dim Description(MaxDenrees) As String
@@ -537,7 +558,7 @@ Public Module Program
         Mode2 = eSortOrder.Descending
         col3 = 10
         Mode3 = eSortOrder.Ascending
-        Call TriMultiple("FAMILLES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 10, NbFamilles + 1)
+        Call TriMultiple("FAMILLES", col1, Mode1, col2, Mode2, col3, Mode3, 10, NbFamilles + 1)
 
         NbTotViande = 0
         For i = 1 To NbFamilles
@@ -656,10 +677,10 @@ Public Module Program
             col3 = 9            'col I
             Mode3 = eSortOrder.Ascending
         Else
-            Col3 = 5
+            col3 = 5
             Mode3 = eSortOrder.Descending
         End If
-        Call TriMultiple("FAMILLES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 10, NbFamilles + 1)
+        Call TriMultiple("FAMILLES", col1, Mode1, col2, Mode2, col3, Mode3, 10, NbFamilles + 1)
 
         'on relit les familles après le tri
         For i = 1 To NbFamilles
@@ -688,7 +709,7 @@ Public Module Program
             Mode3 = eSortOrder.Descending
         End If
         k = NbDenrees + NbPreparations + NbSalades + NbLaitages + 30
-        Call TriMultiple("RESULTATS", Col1, Mode1, Col2, Mode2, Col3, Mode3, k, NbFamilles + 2)
+        Call TriMultiple("RESULTATS", col1, Mode1, col2, Mode2, col3, Mode3, k, NbFamilles + 2)
 
         If NbPreparations > 0 Then
             wsExcel = wbExcel.Worksheets("RESULTATS")
@@ -785,7 +806,7 @@ Public Module Program
         col3 = 0
         Mode3 = eSortOrder.Ascending
 
-        Call TriMultiple("FAMILLES", Col1, Mode1, Col2, Mode2, Col3, Mode3, 10, NbFamilles + 1)
+        Call TriMultiple("FAMILLES", col1, Mode1, col2, Mode2, col3, Mode3, 10, NbFamilles + 1)
 
         'on relit les familles après le tri
         For i = 1 To NbFamilles
@@ -810,7 +831,7 @@ Public Module Program
 
         k = NbDenrees + NbPreparations + NbSalades + NbLaitages + 30
 
-        Call TriMultiple("RESULTATS", Col1, Mode1, Col2, Mode2, Col3, Mode3, k, NbFamilles + 2)
+        Call TriMultiple("RESULTATS", col1, Mode1, col2, Mode2, col3, Mode3, k, NbFamilles + 2)
 
         If NbLaitages > 0 Then
             PtotLait = 0
@@ -1875,7 +1896,7 @@ SiErreur:
             dW = 91                               ' largeur de l'image
             dH = 213                           ' hauteur de l'image
 
-            Dim fileName = "Image" & j & ".bmp"
+            Dim fileName = "Image" & j & ".png"
             Dim picture = wsExcel.Drawings.AddPicture(fileName, Path.Combine(CheminBureau, fileName))
             picture.SetSize(dW, dH)
             picture.SetPosition(dT, dL)
@@ -2109,14 +2130,25 @@ SiErreur:
         ' *******************************************************************
         ' création du graphique
         '********************************************************************
-        Dim newBitmap As New Bitmap(IntLargeur, IntHauteur) 'créons un BitMap
-        Dim g As Graphics = Graphics.FromImage(newBitmap) 'créons un Graphics et y mettre le BitMap
+        Dim newBitmap As New SKBitmap(IntHauteur, IntLargeur, SKColorType.Rgba8888, SKAlphaType.Premul) 'créons un BitMap vertical (inversion de hauteur et largeur)
+        Dim g As New SKCanvas(newBitmap) 'créons un Graphics et y mettre le BitMap
+        'rotation de 270 de tous les éléments à dessiner
+        g.Translate(IntHauteur / 2, IntLargeur / 2)
+        g.RotateDegrees(-90)
+        g.Translate(-IntLargeur / 2, -IntHauteur / 2)
 
-        Dim blackPen As New Pen(Color.Black, 5)    'créer un stylet noir d'épaisseur 
-        ' Dim YeloPen As New Pen(Color.Yellow, 5)
-        Dim WhitePen As New Pen(Color.White, 5)
+        Dim blackPen As New SKPaint() 'créer un stylet noir d'épaisseur
+        With blackPen
+            .Color = New SKColor(0, 0, 0, 255)
+            .StrokeWidth = 5
+        End With
+        Dim WhitePen As New SKPaint()
+        With WhitePen
+            .Color = New SKColor(255, 255, 255, 255)
+            .StrokeWidth = 5
+        End With
 
-        g.FillRectangle(New SolidBrush(Color.White), 0, 0, IntLargeur, IntHauteur)
+        g.Clear(New SKColor(255, 255, 255, 255))
 
         X1 = IntMargeGauche
         X2 = X1
@@ -2125,32 +2157,36 @@ SiErreur:
 
         '------Création de la zone de texte ------------------------------------------
 
-        Dim drawFont As New System.Drawing.Font("Arial", 35)
-        Dim drawBrush As New System.Drawing.SolidBrush(System.Drawing.Color.Black)
+        ' Dim drawFont As New System.Drawing.Font("Arial", 35)
+        ' Dim drawBrush As New System.Drawing.SolidBrush(System.Drawing.Color.Black)
 
-        g.DrawString(Contenu, drawFont, drawBrush, 250, 23)
+        Dim drawFont As New SKFont(SKTypeface.FromFamilyName("Arial"), 35)
+        Dim textPaint As New SKPaint(drawFont)
+        textPaint.Color = New SKColor(0, 0, 0, 255)
+        g.DrawText(Contenu, 250, 50, textPaint)
 
         '-----Traçage du code-barres----------------------------------------------
         For i = 1 To Len(strCodeBarres)
             strTypeModule = Mid(strCodeBarres, i, 1)                                'Type de module, barre ou espace, à tracer
             Select Case strTypeModule
                 Case "1"
-                    g.DrawLine(blackPen, X1, Y1, X2, Y2)
+                    g.DrawLine(X1, Y1, X2, Y2, blackPen)
                     X1 += IntLargModule
                     X2 = X1
 
                 Case "0"
-                    g.DrawLine(WhitePen, X1, Y1, X2, Y2)
+                    g.DrawLine(X1, Y1, X2, Y2, WhitePen)
                     X1 += IntLargModule
                     X2 = X1
             End Select
 
         Next i
 
-        'PictureBox1.Image = newBitmap
-        newBitmap.RotateFlip(RotateFlipType.Rotate270FlipNone)      'Rotation de l'image verticalement si besoin
-        'PictureBox1.Image.Save(Cheminbureau + "\Image" & j & ".bmp")
-        newBitmap.Save(Path.Combine(CheminBureau, "Image" & j & ".bmp"))
+        Using data = newBitmap.Encode(SKEncodedImageFormat.Png, 100)
+            Using writer = File.OpenWrite(Path.Combine(CheminBureau, "Image" & j & ".png"))
+                data.SaveTo(writer)
+            End Using
+        End Using
 
     End Sub
     Public Function Code128(strChaine As String) As String

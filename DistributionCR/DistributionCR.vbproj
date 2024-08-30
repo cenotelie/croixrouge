@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>DistributionCR</RootNamespace>
     <TargetFramework>net8.0</TargetFramework>
-    <ImportedNamespaces>Microsoft.Office.Core=False,System.Drawing=False,Microsoft.VisualBasic=True,System=True,System.Collections=True,System.Collections.Generic=True,System.Diagnostics=True,System.Linq=True,System.Xml.Linq=True,System.Threading.Tasks=True,DistributionCR=True</ImportedNamespaces>
+    <ImportedNamespaces>System.Drawing=False,Microsoft.VisualBasic=True,System=True,System.Collections=True,System.Collections.Generic=True,System.Diagnostics=True,System.Threading.Tasks=True,DistributionCR=True</ImportedNamespaces>
     <UseWindowsForms>False</UseWindowsForms>
     <ApplicationIcon>red-cross.ico</ApplicationIcon>
   </PropertyGroup>
@@ -14,13 +14,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Import Include="Microsoft.Office.Core" />
     <Import Include="System.Drawing" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="EPPlus" Version="7.2.2" />
-    <PackageReference Include="System.Drawing.Common" Version="8.0.7" />
+    <PackageReference Include="SkiaSharp" Version="2.88.8" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.8" />
   </ItemGroup>
 
 </Project>
