@@ -1959,6 +1959,7 @@ SiErreur:
             intPosition = InStr(intPosition, strString, strCharacter) + 1
             CalculateOccurenceNumber = CalculateOccurenceNumber + 1
         End While
+
     End Function
     Sub TestSomme(nbden As Integer)
         '  ----- test si une colonne est vide ------------------
