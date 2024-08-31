@@ -15,4 +15,4 @@ services:
       # CROIXROUGE_WEB_LISTENON_IP: "0.0.0.0"
       # CROIXROUGE_WEB_LISTENON_PORT: 80
       # CROIXROUGE_WEB_BODY_LIMIT: 10485760
-      CROIXROUGE_WEB_HOT_RELOAD: /home/croixrouge/webapp
+      # CROIXROUGE_WEB_HOT_RELOAD: /home/croixrouge/webapp
