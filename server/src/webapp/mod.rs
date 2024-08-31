@@ -24,8 +24,10 @@ pub fn get_resources() -> Resources {
     let mut resources = Resources::with_fallback("index.html");
     // HTML
     add!(resources, "index.html");
+    add!(resources, "task.html");
+    // javascript
     add!(resources, "index.js");
-    add!(resources, "index.css");
+    add!(resources, "stream.js");
     // images
     add!(resources, "cenotelie.png");
     add!(resources, "favicon.png");

@@ -12,3 +12,9 @@ function getQueryParameters(queryString) {
   } while (match !== null);
   return result;
 }
+
+function removeAllChildren(node) {
+  while (node.hasChildNodes()) {
+    node.removeChild(node.lastChild);
+  }
+}
