@@ -102,4 +102,13 @@ impl Task {
             Err(specialize(error_backend_failure(), details))
         }
     }
+
+    /// Removes all stored data
+    pub async fn delete(&self) -> Result<(), ApiError> {
+        let mut path = PathBuf::from("/home/croixrouge");
+        path.push("tasks");
+        path.push(&self.identifier);
+        tokio::fs::remove_dir_all(path).await?;
+        Ok(())
+    }
 }

@@ -5,7 +5,9 @@
 //! Main application
 
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
+use chrono::Local;
 use log::error;
 use tokio::sync::mpsc::{Receiver, Sender};
 
@@ -45,6 +47,12 @@ impl Application {
             let app = app.clone();
             Box::pin(async move {
                 tasks_worker(app, task_receiver).await;
+            })
+        });
+        tokio::spawn({
+            let app = app.clone();
+            Box::pin(async move {
+                task_janitor(app).await;
             })
         });
         app
@@ -133,6 +141,15 @@ impl Application {
         let data = task.load_result().await?;
         Ok((task.inputs.file_name, data))
     }
+
+    /// Remove old taskss
+    fn checkout_old_tasks(&self) -> Vec<TaskData> {
+        let deadline = Local::now().naive_utc() - Duration::from_secs(60 * 60);
+        let mut lock = self.tasks.lock().unwrap();
+        let (to_remove, to_keep) = lock.drain(..).partition::<Vec<_>, _>(|td| td.task.last_update < deadline);
+        *lock = to_keep;
+        to_remove
+    }
 }
 
 /// The task worker
@@ -167,4 +184,25 @@ async fn tasks_worker_task(app: &Application, task_id: &str) -> Result<(), ApiEr
         }
     }
     result
+}
+
+async fn task_janitor(app: Arc<Application>) {
+    let mut interval = tokio::time::interval(Duration::from_secs(60));
+    loop {
+        interval.tick().await;
+        if let Err(e) = task_janitor_inner(&app).await {
+            error!("{e}");
+            if let Some(backtrace) = &e.backtrace {
+                error!("{backtrace}");
+            }
+        }
+    }
+}
+
+async fn task_janitor_inner(app: &Application) -> Result<(), ApiError> {
+    let to_delete = app.checkout_old_tasks();
+    for data in to_delete {
+        data.task.delete().await?;
+    }
+    Ok(())
 }
