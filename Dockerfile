@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		pkg-config \
 		git \
 		libc6-dev \
+		libfontconfig1 \
 	&& rm -rf /var/lib/apt/lists/*
 
 # add custom user
