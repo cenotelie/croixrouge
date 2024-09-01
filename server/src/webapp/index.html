@@ -23,7 +23,7 @@
       </div>
   </nav>
 </header>
-<body class="bg-white dark:bg-gray-800 content-center">
+<body onload="doPageLoad()" class="bg-white dark:bg-gray-800 content-center">
   <section class="bg-gray-50 dark:bg-gray-900 py-4 max-w-screen-lg mx-auto">
     <div class="p-6 space-y-4 md:space-y-6 sm:p-8 w-full">
       <h1 class="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl dark:text-white" style="text-align: center;">
@@ -45,12 +45,16 @@
 </body>
 <footer class="p-4 bg-white md:p-8 lg:p-10 dark:bg-gray-800">
   <div class="mx-auto max-w-screen-xl text-center">
-      <span class="text-sm text-gray-500 sm:text-center dark:text-gray-400">© <span id="year"></span> <a href="https://cenotelie.fr/" target="_blank" class="hover:underline">Cénotélie</a>. Tous droits réservés.</span>
+    <span class="text-sm text-gray-500 sm:text-center dark:text-gray-400">Version <span id="version"></span>, Copyright © <span id="year"></span> <a href="https://cenotelie.fr/" target="_blank" class="hover:underline">Cénotélie</a>. Tous droits réservés.</span>
   </div>
 </footer>
 
+<script src="/index.js"></script>
 <script>
-  document.getElementById("year").appendChild(document.createTextNode(new Date(Date.now()).getFullYear()));
+  function doPageLoad() {
+    document.getElementById("year").appendChild(document.createTextNode(new Date(Date.now()).getFullYear()));
+    loadVersion();
+  }
 
   function onClickOk() {
     const dropZone = document.getElementById("input-file");

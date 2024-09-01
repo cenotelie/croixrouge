@@ -18,3 +18,25 @@ function removeAllChildren(node) {
     node.removeChild(node.lastChild);
   }
 }
+
+function loadVersion() {
+  fetch("/version")
+    .then((response) => {
+      if (response.status !== 200) {
+        response.text().then((text) => console.error(text));
+      } else {
+        return response.json();
+      }
+    })
+    .then((versionData) => {
+      document
+        .getElementById("version")
+        .appendChild(
+          document.createTextNode(
+            `${
+              versionData.tag.length === 0 ? "latest" : versionData.tag
+            }, git ${versionData.commit}`
+          )
+        );
+    });
+}

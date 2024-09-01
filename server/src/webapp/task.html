@@ -54,16 +54,16 @@
 </body>
 <footer class="p-4 bg-white md:p-8 lg:p-10 dark:bg-gray-800">
   <div class="mx-auto max-w-screen-xl text-center">
-      <span class="text-sm text-gray-500 sm:text-center dark:text-gray-400">© <span id="year"></span> <a href="https://cenotelie.fr/" target="_blank" class="hover:underline">Cénotélie</a>. Tous droits réservés.</span>
+    <span class="text-sm text-gray-500 sm:text-center dark:text-gray-400">Version <span id="version"></span>, Copyright © <span id="year"></span> <a href="https://cenotelie.fr/" target="_blank" class="hover:underline">Cénotélie</a>. Tous droits réservés.</span>
   </div>
 </footer>
 
 <script src="/index.js"></script>
 <script src="/stream.js"></script>
 <script>
-  document.getElementById("year").appendChild(document.createTextNode(new Date(Date.now()).getFullYear()));
-
   function doPageLoad() {
+    document.getElementById("year").appendChild(document.createTextNode(new Date(Date.now()).getFullYear()));
+    loadVersion();
     const args = getQueryParameters(window.location.search);
     const taskId = args.id;
     const source = new StreamEventSource(`/api/v1/tasks/${taskId}/updates`, null);
