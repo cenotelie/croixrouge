@@ -12,7 +12,7 @@ edition = "2021"
 [dependencies]
 # logging
 log = "0.4"
-fern = "0.6"
+fern = "0.7"
 
 # serde
 serde = "1.0"
