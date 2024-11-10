@@ -575,9 +575,9 @@ Public Module Program
                 Mode2 = eSortOrder.Ascending
                 col3 = 4
                 Mode3 = eSortOrder.Descending
-                Call TriMultiple("ANTICIPES", col1, Mode1, col2, Mode2, col3, Mode3, 6, Nbanti + 1)
+            Call TriMultiple("ANTICIPES", col1, Mode1, col2, Mode2, col3, Mode3, 7, Nbanti + 1)
 
-                For i = 1 To Nbanti
+            For i = 1 To Nbanti
                     NomAnti(i) = wsExcel.Cells(i + 1, 1).Value          'Nom de la famille
                     TestType = wsExcel.Cells(i + 1, 2).Value
                     TestType = TestType.Substring(0, 1)
@@ -1342,23 +1342,27 @@ Public Module Program
         'Viandes anticipées :  mise en couleur de l'entête de colonne
 
         If NbDenreesAnti > 0 Then
+            wsExcel.Columns(Decal + 1, Decal + NbDenreesAnti).Width = 4
+            wsExcel.Columns(Decal + 1, Decal + NbDenreesAnti).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+
             AlphaColTri = AlphaCol(Decal + 1)
             AlphaColTri2 = AlphaCol(Decal + NbDenreesAnti)
             With wsExcel.Cells(AlphaColTri & "1:" & AlphaColTri2 & 1).Style
                 .Fill.PatternType = ExcelFillStyle.Solid
                 .Fill.BackgroundColor.Indexed = 42
             End With
+            Decal += NbDenreesAnti
         End If
 
         ' VIANDES   formattage des colonnes
         If NbDenrees > 0 Then
 
-            wsExcel.Columns(6, Decal + NbDenrees + NbDenreesAnti).Width = 4
-            wsExcel.Columns(6, Decal + NbDenrees + NbDenreesAnti).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+            wsExcel.Columns(Decal + 1, Decal + NbDenrees).Width = 4
+            wsExcel.Columns(Decal + 1, Decal + NbDenrees).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
 
-            AlphaColTri = AlphaCol(Decal + NbDenrees + NbDenreesAnti + 1)
-            AlphaColTri2 = AlphaCol(Decal + NbDenrees + NbDenreesAnti + 3)
-            With wsExcel.Columns(Decal + NbDenrees + NbDenreesAnti + 1, Decal + NbDenrees + NbDenreesAnti + 3)
+            AlphaColTri = AlphaCol(Decal + NbDenrees + 1)
+            AlphaColTri2 = AlphaCol(Decal + NbDenrees + 3)
+            With wsExcel.Columns(Decal + NbDenrees + 1, Decal + NbDenrees + 3)
                 .Width = 8
                 .Style.Font.Bold = True
                 .Style.Numberformat.Format = "0.0"
@@ -1368,29 +1372,32 @@ Public Module Program
                 .Fill.BackgroundColor.Indexed = 43
             End With
 
-            Decal += NbDenrees + NbDenreesAnti + 3
+            Decal += NbDenrees + 3
 
         End If
 
         'Préparations anticipées :  mise en couleur de l'entête de colonne
         If NbPrepaAnti > 0 Then
+            wsExcel.Columns(Decal + 1, Decal + NbPrepaAnti).Width = 4
+            wsExcel.Columns(Decal + 1, Decal + NbPrepaAnti).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
             AlphaColTri = AlphaCol(Decal + 1)
             AlphaColTri2 = AlphaCol(Decal + NbPrepaAnti)
             With wsExcel.Cells(AlphaColTri & "1:" & AlphaColTri2 & 1).Style
                 .Fill.PatternType = ExcelFillStyle.Solid
                 .Fill.BackgroundColor.Indexed = 42
             End With
+            Decal += NbPrepaAnti
         End If
 
         ' PREPARATIONS   formattage des colonnes
         If NbPreparations > 0 Then
             AlphaColTri = AlphaCol(Decal + 1)
-            AlphaColTri2 = AlphaCol(Decal + NbPreparations + NbPrepaAnti)
-            wsExcel.Columns(Decal + 1, Decal + NbPreparations + NbPrepaAnti).Width = 4
-            wsExcel.Columns(Decal + 1, Decal + NbPreparations + NbPrepaAnti).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+            AlphaColTri2 = AlphaCol(Decal + NbPreparations)
+            wsExcel.Columns(Decal + 1, Decal + NbPreparations).Width = 4
+            wsExcel.Columns(Decal + 1, Decal + NbPreparations).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
 
-            AlphaColTri = AlphaCol(Decal + NbPreparations + NbPrepaAnti + 1)
-            With wsExcel.Columns(Decal + NbPreparations + NbPrepaAnti + 1)
+            AlphaColTri = AlphaCol(Decal + NbPreparations + 1)
+            With wsExcel.Columns(Decal + NbPreparations + 1)
                 .Width = 6
                 .Style.Font.Bold = True
                 .Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
@@ -1400,28 +1407,31 @@ Public Module Program
                 .Fill.BackgroundColor.Indexed = 43
             End With
 
-            Decal += NbPreparations + NbPrepaAnti + 1
+            Decal += NbPreparations + 1
         End If
 
         'Salades anticipées :  mise en couleur de l'entête de colonne
         If NbSaladeAnti > 0 Then
+            wsExcel.Columns(Decal + 1, Decal + NbSaladeAnti).Width = 4
+            wsExcel.Columns(Decal + 1, Decal + NbSaladeAnti).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
             AlphaColTri = AlphaCol(Decal + 1)
             AlphaColTri2 = AlphaCol(Decal + NbSaladeAnti)
             With wsExcel.Cells(AlphaColTri & "1:" & AlphaColTri2 & 1).Style
                 .Fill.PatternType = ExcelFillStyle.Solid
                 .Fill.BackgroundColor.Indexed = 42
             End With
+            Decal += NbSaladeAnti
         End If
 
         ' SALADES  formattage des colonnes
         If NbSalades > 0 Then
-            AlphaColTri = AlphaCol(Decal + NbSaladeAnti + 1)
-            AlphaColTri2 = AlphaCol(Decal + NbSaladeAnti + NbSalades)
-            wsExcel.Columns(Decal + 1, Decal + NbSalades + NbSaladeAnti).Width = 4
-            wsExcel.Columns(Decal + 1, Decal + NbSalades + NbSaladeAnti).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+            AlphaColTri = AlphaCol(Decal + 1)
+            AlphaColTri2 = AlphaCol(Decal + NbSalades)
+            wsExcel.Columns(Decal + 1, Decal + NbSalades).Width = 4
+            wsExcel.Columns(Decal + 1, Decal + NbSalades).Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
 
-            AlphaColTri = AlphaCol(Decal + NbSalades + NbSaladeAnti + 1)
-            With wsExcel.Columns(Decal + NbSalades + NbSaladeAnti + 1)
+            AlphaColTri = AlphaCol(Decal + NbSalades + 1)
+            With wsExcel.Columns(Decal + NbSalades + 1)
                 .Width = 6
                 .Style.Font.Bold = True
                 .Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
@@ -1431,7 +1441,7 @@ Public Module Program
                 .Fill.BackgroundColor.Indexed = 43
             End With
 
-            Decal += NbSalades + NbSaladeAnti + 1
+            Decal += NbSalades + 1
         End If
 
         ' LAITAGES  formattage des colonnes
@@ -2008,13 +2018,14 @@ SiErreur:
         'Dim NomAnti(MaxDenrees) As String
         Dim TypeAnti(MaxDenrees) As String
         Dim DescAnti(MaxDenrees) As String
-        'Dim TailleAnti(MaxDenrees) As String
+        Dim PoidsGlobalAnti(MaxDenrees) As String
         Dim PoidsAnti(MaxDenrees) As Single
         Dim QuantAnti(MaxDenrees) As Integer
         Dim CodePrixAnti(MaxDenrees) As String
         Dim TypeReduit(MaxDenrees) As String
         Dim CodeReduit(MaxDenrees) As String
         Dim PoidsReduit(MaxDenrees) As Single
+        Dim PoidsGlobalReduit(MaxDenrees) As Single
         Dim Nbanti As Integer
         Dim TestType As String
         Dim NbSingleAnti As Integer
@@ -2028,6 +2039,8 @@ SiErreur:
         Dim PoidsTest As String
         Dim NbErreur As Integer
         Dim TotalFamille As Single
+        Dim PoidsVerif As Single
+        Dim Onglet As String
 
         ' chemin réseau générique pour l'enregistrement des images de code-barre
         ' CheminBureau = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
@@ -2074,6 +2087,9 @@ SiErreur:
         NbCat = 0
 
         ' **** CONSTRUCTION DE LA LISTE UNIQUE et SANS DOUBLONS DES CODES PRIX *****
+        ' relecture des onglets de données
+        ' vérification du poids global si unité kgM
+        ' construction de la liste unique des catégories
         '-----------------liste des codes viandes------------------------------------
         wsExcel = wbExcel.Worksheets("VIANDES")
         nbdenrees = GetNonEmptyRows() - 1
@@ -2094,7 +2110,12 @@ SiErreur:
         If NbPreparations > 0 Then
             For j = 1 To NbPreparations
                 CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value
+                PoidsVerif = wsExcel.Cells(j + 1, 7).Value
+                TestPrepa = wsExcel.Cells(j + 1, 1).Value
+                Onglet = "PREPARATIONS"
+                Call VerifPoids(j, nbPrix, CodePrixDenree(j), CodePrix, UnitAIDA, PoidsVerif, TestPrepa, Onglet)
             Next j
+
 
             Call ListeCategorie(NbPreparations, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
             UnitAIDA, Categorie, CatAIDA, UnAIDA, PrixAIDA, PrixListe)
@@ -2107,6 +2128,10 @@ SiErreur:
         If NbSalades > 0 Then
             For j = 1 To NbSalades
                 CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value
+                PoidsVerif = wsExcel.Cells(j + 1, 7).Value
+                TestPrepa = wsExcel.Cells(j + 1, 1).Value
+                Onglet = "SALADES"
+                Call VerifPoids(j, nbPrix, CodePrixDenree(j), CodePrix, UnitAIDA, PoidsVerif, TestPrepa, Onglet)
             Next j
 
             Call ListeCategorie(NbSalades, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
@@ -2119,7 +2144,11 @@ SiErreur:
 
         If NbLaitages > 0 Then
             For j = 1 To NbLaitages
+                TestPrepa = wsExcel.Cells(j + 1, 1).Value
                 CodePrixDenree(j) = wsExcel.Cells(j + 1, 5).Value
+                PoidsVerif = wsExcel.Cells(j + 1, 6).Value
+                Onglet = "LAITAGES"
+                Call VerifPoids(j, nbPrix, CodePrixDenree(j), CodePrix, UnitAIDA, PoidsVerif, TestPrepa, Onglet)
             Next j
 
             Call ListeCategorie(NbLaitages, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
@@ -2132,7 +2161,11 @@ SiErreur:
 
         If NbDivers > 0 Then
             For j = 1 To NbDivers
+                TestPrepa = wsExcel.Cells(j + 1, 1).Value
                 CodePrixDenree(j) = wsExcel.Cells(j + 1, 2).Value
+                PoidsVerif = wsExcel.Cells(j + 1, 3).Value
+                Onglet = "DIVERS"
+                Call VerifPoids(j, nbPrix, CodePrixDenree(j), CodePrix, UnitAIDA, PoidsVerif, TestPrepa, Onglet)
             Next j
 
             Call ListeCategorie(NbDivers, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
@@ -2149,10 +2182,9 @@ SiErreur:
 
         If Nbanti > 0 Then
             For i = 1 To Nbanti
-            ' NomAnti(i) = wsExcel.Cells(i + 1, 1).Value          'Nom de la famille
-            TestType = wsExcel.Cells(i + 1, 2).Value            ' décode le type de denrée anticipée
-            TestType = TestType.Substring(0, 1)
-            TestType = TestType.ToUpper()
+                TestType = wsExcel.Cells(i + 1, 2).Value            ' décode le type de denrée anticipée
+                TestType = TestType.Substring(0, 1)
+                TestType = TestType.ToUpper()
                 If TestType = "V" Or TestType = "P" Or TestType = "S" Then
                     TypeAnti(i) = TestType                          ' type de produit
                 Else
@@ -2173,10 +2205,10 @@ SiErreur:
                     End If
 
                 Else
-                    TestPrepa = wsExcel.Cells(i + 1, 4).Value
+                    TestPrepa = wsExcel.Cells(i + 1, 4).Value       'décode la taille
                     TestPrepa = TestPrepa.Substring(0, 1)
                     TestPrepa = TestPrepa.ToUpper()
-                    'TailleAnti(i) = TestPrepa
+
                     Select Case TestPrepa                           ' calcule le poids en fonction de la taille
                         Case "P"                                    'Taille petite => poids équivalent viande = 40 gr
                             PoidsAnti(i) = 10 * CoefPrepa           'rappel coefPrepa est une constante
@@ -2190,7 +2222,14 @@ SiErreur:
                             NbErreur += 1
                     End Select
                 End If
+
+                'vérification poids global si unité kgM
                 CodePrixAnti(i) = wsExcel.Cells(i + 1, 6).Value           'CodePrix
+                PoidsGlobalAnti(i) = wsExcel.Cells(i + 1, 7).Value           'PoidsGlobal pour unités KgM
+                PoidsVerif = PoidsGlobalAnti(i)
+                TestPrepa = wsExcel.Cells(i + 1, 3).Value
+                Onglet = "ANTICIPES"
+                Call VerifPoids(i, nbPrix, CodePrixAnti(i), CodePrix, UnitAIDA, PoidsVerif, TestPrepa, Onglet)
 
             Next i
             '-----------liste des codes anticipes------------------------------------------
@@ -2214,8 +2253,11 @@ SiErreur:
                 Call Colexit()
                 Exit Sub
             End If
-        Next i
 
+            'Console.WriteLine("Categorie " & i & " cat = " & Categorie(i) & " unite " & UnAIDA(i))
+
+        Next i
+        'StrOption = Console.ReadLine()
         '-----------Formattage feuille AIDA-----------------------------------------------------
         If FeuilleExiste("AIDA") = True Then
             wbExcel.Worksheets.Delete("AIDA")
@@ -2260,15 +2302,19 @@ SiErreur:
         Decal = 5
         If nbdenrees > 0 Or NbDenreesAnti > 0 Then
             Call TestSomme2(nbdenrees + NbDenreesAnti)      ' teste si somme des quant. attribuées = quant. déclarée et si somme non nulle
-            Decal += nbdenrees + NbDenreesAnti + 3
+            Decal += NbDenreesAnti
+            If nbdenrees > 0 Then Decal += nbdenrees + 3
         End If
         If NbPreparations > 0 Or NbPrepaAnti > 0 Then
             Call TestSomme2(NbPreparations + NbPrepaAnti)
-            Decal += NbPreparations + NbPrepaAnti + 1
+            Decal += NbPrepaAnti
+            If NbPreparations > 0 Then Decal += NbPreparations + 1
+
         End If
         If NbSalades > 0 Or NbSaladeAnti > 0 Then
             Call TestSomme2(NbSalades + NbSaladeAnti)
-            Decal += NbSalades + NbSaladeAnti + 1
+            Decal += NbSaladeAnti
+            If NbSalades > 0 Then Decal += NbSalades + 1
         End If
         If NbLaitages > 0 Then
             Call TestSomme2(NbLaitages)
@@ -2278,7 +2324,7 @@ SiErreur:
             Call TestSomme(NbDivers)        'pas de quantité déclarée, test si somme nulle seulement
         End If
 
-        '----- Construction de la liste des anticipés SANS DOUBLONS ----------------------
+        '----- Construction de la liste des anticipés SANS DOUBLONS = liste réduite ----------------------
         If Nbanti > 0 Then
             NbSingleAnti = 0                    ' nbre de colonnes des anticipés
             DescPrecedent = ""
@@ -2294,11 +2340,15 @@ SiErreur:
                     TypeReduit(NbSingleAnti) = TypeAnti(i)
                     CodeReduit(NbSingleAnti) = CodePrixAnti(i)
                     PoidsReduit(NbSingleAnti) = PoidsAnti(i)
+                    PoidsGlobalReduit(NbSingleAnti) = PoidsGlobalAnti(i)
+
                 End If
             Next i
         End If
 
-        '------------Report des cumuls par catégorie, pour chaque famille---------------------
+        ' ****************************************************************************************
+        '      CALCUL DES CUMUL  de poids ou de taille, famille par famille
+        '******************************************************************************************
         wsExcel = wbExcel.Worksheets("RESULTATS")
         For i = 1 To NbFamilles
             For k = 1 To NbCat
@@ -2314,10 +2364,15 @@ SiErreur:
                     If TypeReduit(j) = "V" Then
                         ' dans la liste des anticipés Sans Doublons, on sélectionne les viandes
                         k += 1
-                        CodePrixDenree(k) = CodeReduit(j)
-                        Poids(k) = PoidsReduit(j) / 1000
+                        CodePrixDenree(k) = CodeReduit(j)               'Code Prix
+                        Poids(k) = PoidsReduit(j) / 1000                ' Poids (valable pour unité kgC )
                     End If
                 Next j
+
+                ' vérifie que les indices de viandes anticipées sont justes:
+                ' NbDenreesAnti = nombre de viandes anticipées relues dans ANTICIPES
+                ' k= nombre de viandes anticipées recalculées dans la liste réduite
+
                 If NbDenreesAnti <> k Then
                     TexteMsg = "Indices de denrées anticipées inexactes: nbdenreesAnti = " & NbDenreesAnti & "  k = " & k
                     Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "RESULTATS")
@@ -2353,7 +2408,7 @@ SiErreur:
                         ' dans la liste des anticipés Sans Doublons, on sélectionne les préparations
                         k += 1
                         CodePrixDenree(k) = CodeReduit(j)
-                        Poids(k) = PoidsReduit(j) / 1000
+                        Poids(k) = PoidsGlobalReduit(j)     'Poids Global, valable pour unité kgM
                     End If
                 Next j
                 If NbPrepaAnti <> k Then
@@ -2371,7 +2426,7 @@ SiErreur:
             If NbPreparations > 0 Then
                 wsExcel = wbExcel.Worksheets("PREPARATIONS")
                 For j = 1 To NbPreparations
-                    CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value
+                    CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value   ' Code Prix
                     Poids(j) = wsExcel.Cells(j + 1, 7).Value
                 Next j
                 Call ReportCumul(NbPreparations, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv, Erreur)
@@ -2388,8 +2443,8 @@ SiErreur:
                     If TypeReduit(j) = "S" Then
                         ' dans la liste des anticipés Sans Doublons, on sélectionne les préparations
                         k += 1
-                        CodePrixDenree(k) = CodeReduit(j)
-                        Poids(k) = PoidsReduit(j) / 1000
+                        CodePrixDenree(k) = CodeReduit(j)       ' Code Prix
+                        Poids(k) = PoidsGlobalReduit(j)         'Poids Global, valable pour unité kgM
                     End If
                 Next j
                 If NbSaladeAnti <> k Then
@@ -2453,7 +2508,7 @@ SiErreur:
             For k = 1 To NbCat
                 wsExcel.Cells(i + 2, k + 3).Value = PoidsCat(k)
             Next k
-        Next i
+        Next i              ' fin de boucle sur les familles
 
         '------------Ajustement des arrondis pour l'unité KgM-------------------------------
         wsExcel = wbExcel.Worksheets("AIDA")
@@ -2717,6 +2772,20 @@ SiErreur:
 
         Next j
 
+    End Sub
+
+    Sub VerifPoids(j As Integer, nbprix As Integer, codeprixDenree As String, codeprix() As String, unitAida() As String, PoidsVerif As Single, TestPrepa As String, Onglet As String)
+        Dim i As Integer
+        '---- vérification poids total non nul si unité kgM -----------------------------------------------------
+        For i = 1 To nbprix
+            If codeprixDenree = codeprix(i) Then
+                If unitAida(i) = "[kgM]" And PoidsVerif = 0 Then
+                    TexteMsg = "Ligne " & j + 1 & " " & TestPrepa & ": unité " & unitAida(i) & " et Poids total nul, pas de valeur dans la col. AIDA  " & codeprixDenree
+                    Call Reporting(Onglet, "ALERTE", TexteMsg, Onglet)
+                    Exit For
+                End If
+            End If
+        Next i
     End Sub
 
     Public Sub CodeBarreBMP(j As Integer, Contenu As String)
