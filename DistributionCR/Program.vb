@@ -3,6 +3,7 @@ Option Explicit On
 Imports System.Globalization
 Imports System.IO
 Imports OfficeOpenXml
+Imports OfficeOpenXml.ExcelErrorValue
 Imports OfficeOpenXml.Sorting
 Imports OfficeOpenXml.Style
 Imports SkiaSharp
@@ -13,10 +14,11 @@ Public Module Program
     Private argMode As Integer
 
     'Déclaration des variables  Excel
-    Public appExcel As ExcelPackage          'Application Excel
-    Public wbExcel As ExcelWorkbook          'Classeur Excel
-    Public wsExcel As ExcelWorksheet         'Feuille Excel
-    Public StrInput As String                'nom complet du fichier de données
+    Dim appExcel As ExcelPackage          'Application Excel
+    Dim wbExcel As ExcelWorkbook          'Classeur Excel
+    Dim wsExcel As ExcelWorksheet         'Feuille Excel
+    Dim StrInput As String                'nom complet du fichier de données
+
     ' dimensions des variables (à changer en cas de besoin)
     Public Const MaxFamilles As Integer = 150
     Public Const MaxPrix As Integer = 300
@@ -24,27 +26,30 @@ Public Module Program
     ' constantes de poids
     Public Const CoefPrepa As Integer = 4
     Public Const CoefSalade As Integer = 4
+
     ' variables de travail
-    Public Decal As Integer                 'décalage de colonnes dans RESULTATS, 
-    Public nbReport As Integer              'compteur de lignes dans RAPPORT
-    Public TexteMsg As String               'variable de texte
+    Dim Decal As Integer                        'décalage de colonnes dans RESULTATS, 
+    Dim nbReport As Integer                     'compteur de lignes dans RAPPORT
+    Dim TexteMsg As String                      'variable de texte
+    Dim TestErreur As Boolean                   ' Test si sortie sur erreur, arrêt du programme
+    Dim NbErreur As Integer                     ' Compteur d'erreurs en Alerte
+    Dim NbCat As Integer                         'nombre de catégories AIDA
+    Dim CheminBureau As String                   'chemin pour sauvegarde de l'image code-barre
+    Dim ValeurR As Single                        ' Valeur Réelle de retour de la sub VerifNumeric
+    Dim ValeurI As Integer                       ' Valeur entière de retour de la sub  VerifNumeric
 
     'Déclaration variables FAMILLES
-
-    Public NumFamille(MaxFamilles) As Integer       'Numero de caisse
-    Public NomFamille(MaxFamilles) As String        'Nom de famille
-    Public NBenef(MaxFamilles) As Integer           'Nombre de bénéficiaires
-    Public SansCochon(MaxFamilles) As Boolean       'indicateur Sans cochon
-    Public SansViande(MaxFamilles) As Boolean       'indicateur vegan
-    Public Panier(MaxFamilles) As Single            'panier de la famille
-    Public PoidsTheo(MaxFamilles) As Single         'poids théorique de viande
-    Public PanierZeu(MaxFamilles) As Single         'panier d'oeufs
-    Public PoidsTheozeu(MaxFamilles) As Single      'quantité theo d'oeufs
-    Public TestSCSV(MaxFamilles) As Integer         'cocatenation des indicateurs sanscochon et sansviande
-    Public NbFamilles As Integer                    'nombre de familles
-
-    Public NbCat As Integer                         'nombre de catégories AIDA
-    Public CheminBureau As String                   'chemin pour sauvegarde de l'image code-barre
+    Dim NumFamille(MaxFamilles) As Integer       'Numero de caisse
+    Dim NomFamille(MaxFamilles) As String        'Nom de famille
+    Dim NBenef(MaxFamilles) As Integer           'Nombre de bénéficiaires
+    Dim SansCochon(MaxFamilles) As Boolean       'indicateur Sans cochon
+    Dim SansViande(MaxFamilles) As Boolean       'indicateur vegan
+    Dim Panier(MaxFamilles) As Single            'panier de la famille
+    Dim PoidsTheo(MaxFamilles) As Single         'poids théorique de viande
+    Dim PanierZeu(MaxFamilles) As Single         'panier d'oeufs
+    Dim PoidsTheozeu(MaxFamilles) As Single      'quantité theo d'oeufs
+    Dim TestSCSV(MaxFamilles) As Integer         'cocatenation des indicateurs sanscochon et sansviande
+    Dim NbFamilles As Integer                    'nombre de familles
 
     Sub Main()
         Dim NbLignes As Integer
@@ -89,11 +94,11 @@ Public Module Program
         Select Case argMode
             Case 1
                 Call Repartition()
-                Call AIDA()
+                If TestErreur = False Then Call AIDA()      'Si des erreurs sont détectées, on n'appelle pas AIDA
                 Call Colexit()
             Case 2
                 Call MAJ()
-                Call AIDA()
+                If TestErreur = False Then Call AIDA()      'Si des erreurs sont détectées, on n'appelle pas AIDA
                 Call Colexit()
             Case Else
                 Call Colexit()
@@ -175,7 +180,6 @@ Public Module Program
         Dim Ecart As Single
         Dim EcartMaxi As Single
         Dim NumeMaxi As Integer
-        Dim NbErreur As Integer
         '------------Viandes ----------------------------
         Dim ModuleViande As Single
         Dim Description(MaxDenrees) As String
@@ -188,7 +192,6 @@ Public Module Program
         Dim NbDenrees As Integer
         Dim PTotViande As Single
         Dim NbTotViande As Integer
-        Dim PoidsTest As String
         '----------Preparations-------------------------------
         Dim NbPreparations As Integer
         Dim Preparation(MaxDenrees) As String
@@ -199,7 +202,6 @@ Public Module Program
         Dim PrepaSV(MaxDenrees) As Boolean
         Dim PTotPrepa As Single
         Dim QuantTotPrepa As Integer
-
         '----------Salades-------------------------------------
         Dim NbSalades As Integer
         Dim Salade(MaxDenrees) As String
@@ -210,7 +212,6 @@ Public Module Program
         Dim SaladeSV(MaxDenrees) As Boolean
         Dim PTotSalad As Single
         Dim QuantTotSalad As Integer
-
         '---------------Laitages-----------------------------
         Dim NbLaitages As Integer
         Dim Laitage(MaxDenrees) As String
@@ -223,7 +224,6 @@ Public Module Program
         Dim CibleLait As Single
         Dim SommeLait As Single
         Dim SommeZeu As Single
-
         '--------Déclaration variables Anticipes
         Dim NomAnti(MaxDenrees) As String
         Dim TypeAnti(MaxDenrees) As String
@@ -253,13 +253,16 @@ Public Module Program
         Dim Divers(MaxDenrees) As String
         Dim TotalFamille As Single
 
+        'Dim StrOption As String
         '**************************************************************************************
         '   Lecture des prix
         '**************************************************************************************
         NbErreur = 0
+        TestErreur = False                  'initialisation du TestErreur à false
+
         If FeuilleExiste("PRIX") = False Then           'TEST présence feuille
             Call Reporting("PRIX", "ARRET", "Feuille manquante", "RAPPORT")
-            Call Colexit()
+            TestErreur = True
             Exit Sub
         End If
 
@@ -269,7 +272,7 @@ Public Module Program
 
         If NbPrix > MaxPrix Then            'Test dépassement dimension maxi
             Call Reporting("PRIX", "ARRET", "Nombre de prix dépasse la dimension > " & MaxPrix, "RAPPORT")
-            Call Colexit()
+            TestErreur = True
             Exit Sub
         End If
 
@@ -291,6 +294,7 @@ Public Module Program
         Else
             TexteMsg = "Pas de code prix documenté"
             Call Reporting("PRIX", "ALERTE", TexteMsg, "PRIX")
+            NbErreur += 1
         End If
 
         '*****************************************************************
@@ -299,7 +303,7 @@ Public Module Program
 
         If FeuilleExiste("VIANDES") = False Then
             Call Reporting("VIANDES", "ARRET", "Feuille manquante", "RAPPORT")
-            Call Colexit()
+            TestErreur = True
             Exit Sub
         End If
         wsExcel = wbExcel.Worksheets("VIANDES")
@@ -308,7 +312,7 @@ Public Module Program
 
         If NbDenrees > MaxDenrees Then
             Call Reporting("VIANDES", "ARRET", "Nombre de viandes dépasse la dimension > " & MaxDenrees, "RAPPORT")
-            Call Colexit()
+            TestErreur = True
             Exit Sub
         End If
 
@@ -325,23 +329,14 @@ Public Module Program
 
             For i = 1 To NbDenrees
                 Description(i) = wsExcel.Cells(i + 1, 1).Value
-                If VarType(wsExcel.Cells(i + 1, 2).Value) = 5 Then      'teste le contenu de la cellule: vartype=5 => nombre
-                    Poids(i) = wsExcel.Cells(i + 1, 2).Value
-                Else
-                    PoidsTest = wsExcel.Cells(i + 1, 2).Value
-                    TexteMsg = "Poids " & PoidsTest & "  à la ligne " & i + 1 & " n'est pas un nombre!"
-                    Call Reporting("VIANDES", "ALERTE", TexteMsg, "VIANDES")
-                    NbErreur += 1
-                End If
+                Call VerifNumeric(wsExcel.Cells(i + 1, 2).Value, "Reel", "VIANDES", i, 2)
+                Poids(i) = ValeurR
+                'Console.WriteLine("Ligne " & i + 1 & " col 2= " & wsExcel.Cells(i + 1, 2).Value & "  Poids= " & Poids(i) & "  NbErreur= " & NbErreur)
+                Call VerifNumeric(wsExcel.Cells(i + 1, 3).Value, "Entier", "VIANDES", i, 3)
+                Quant(i) = ValeurI
+                'Console.WriteLine("Ligne " & i + 1 & " col 3= " & wsExcel.Cells(i + 1, 3).Value & "  Quant= " & Quant(i) & "  NbErreur= " & NbErreur)
+                'StrOption = Console.ReadLine()
 
-                If VarType(wsExcel.Cells(i + 1, 3).Value) = 5 Then       'teste le contenu de la cellule: vartype=5 => nombre
-                    Quant(i) = wsExcel.Cells(i + 1, 3).Value
-                Else
-                    PoidsTest = wsExcel.Cells(i + 1, 3).Value
-                    TexteMsg = "Quantité " & PoidsTest & "  à la ligne " & i + 1 & " n'est pas un nombre!"
-                    Call Reporting("VIANDES", "ALERTE", TexteMsg, "VIANDES")
-                    NbErreur += 1
-                End If
                 ViandeSC(i) = False                 'SC = Sans Cochon = musulman
                 If wsExcel.Cells(i + 1, 4).Value = 1 Then ViandeSC(i) = True
                 ViandeSV(i) = False                 'SV = Sans Viande = vegan
@@ -358,7 +353,7 @@ Public Module Program
 
         If FeuilleExiste("PREPARATIONS") = False Then
             Call Reporting("PREPARATIONS", "ARRET", "Feuille manquante", "RAPPORT")
-            Call Colexit()
+            TestErreur = True
             Exit Sub
         End If
         wsExcel = wbExcel.Worksheets("PREPARATIONS")
@@ -367,7 +362,7 @@ Public Module Program
 
         If NbPreparations > MaxDenrees Then
             Call Reporting("PREPARATIONS", "ARRET", "Nombre de preparations dépasse la dimension > " & MaxDenrees, "RAPPORT")
-            Call Colexit()
+            TestErreur = True
             Exit Sub
         End If
 
@@ -402,16 +397,13 @@ Public Module Program
                         Call Reporting("PREPARATIONS", "ALERTE", TexteMsg, "PREPARATIONS")
                         NbErreur += 1
                 End Select
-                PoidsTest = wsExcel.Cells(i + 1, 3).Value
-                If VarType(wsExcel.Cells(i + 1, 3).Value) = 5 Then
-                    QuantPrepa(i) = wsExcel.Cells(i + 1, 3).Value
-                    QuantTotPrepa += QuantPrepa(i)
-                    PTotPrepa += QuantPrepa(i) * PoidsPrepa(i)
-                Else
-                    TexteMsg = "Quantité " & PoidsTest & "  à la ligne " & i + 1 & " n'est pas un nombre!"
-                    Call Reporting("PREPARATIONS", "ALERTE", TexteMsg, "PREPARATIONS")
-                    NbErreur += 1
-                End If
+
+                Call VerifNumeric(wsExcel.Cells(i + 1, 3).Value, "Entier", "PREPARATIONS", i, 3) 'vérification de la quantité
+                QuantPrepa(i) = ValeurI
+                QuantTotPrepa += QuantPrepa(i)
+                PTotPrepa += QuantPrepa(i) * PoidsPrepa(i)
+
+                Call VerifNumeric(wsExcel.Cells(i + 1, 7).Value, "Reel", "PREPARATIONS", i, 7)  'vérification du Poids Global
 
                 wsExcel.Cells(i + 1, 8).Value = PoidsPrepa(i)
                 PrepaSC(i) = False
@@ -428,7 +420,7 @@ Public Module Program
 
         If FeuilleExiste("SALADES") = False Then
             Call Reporting("SALADES", "ARRET", "Feuille manquante", "RAPPORT")
-            Call Colexit()
+            TestErreur = True
             Exit Sub
         End If
         wsExcel = wbExcel.Worksheets("SALADES")
@@ -437,7 +429,7 @@ Public Module Program
 
         If NbSalades > MaxDenrees Then
             Call Reporting("SALADES", "ARRET", "Nombre de salades dépasse la dimension > " & MaxDenrees, "SALADES")
-            Call Colexit()
+            TestErreur = True
             Exit Sub
         End If
 
@@ -473,16 +465,13 @@ Public Module Program
                         Call Reporting("SALADES", "ALERTE", TexteMsg, "SALADES")
                         NbErreur += 1
                 End Select
-                PoidsTest = wsExcel.Cells(i + 1, 3).Value
-                If VarType(wsExcel.Cells(i + 1, 3).Value) = 5 Then
-                    QuantSalade(i) = wsExcel.Cells(i + 1, 3).Value
-                    QuantTotSalad += QuantSalade(i)
-                    PTotSalad += QuantSalade(i) * PoidsSalade(i)
-                Else
-                    TexteMsg = "Quantité " & PoidsTest & "  à la ligne " & i + 1 & " n'est pas un nombre!"
-                    Call Reporting("SALADES", "ALERTE", TexteMsg, "SALADES")
-                    NbErreur += 1
-                End If
+
+                Call VerifNumeric(wsExcel.Cells(i + 1, 3).Value, "Entier", "SALADES", i, 3) 'vérification de la quantité
+                QuantSalade(i) = ValeurI
+                QuantTotSalad += QuantSalade(i)
+                PTotSalad += QuantSalade(i) * PoidsSalade(i)
+
+                Call VerifNumeric(wsExcel.Cells(i + 1, 7).Value, "Reel", "SALADES", i, 7)  'vérification du Poids Global
 
                 wsExcel.Cells(i + 1, 8).Value = PoidsSalade(i)
                 SaladeSC(i) = False
@@ -498,7 +487,7 @@ Public Module Program
         '*****************************************************
         If FeuilleExiste("LAITAGES") = False Then
             Call Reporting("LAITAGES", "ARRET", "Feuille manquante", "RAPPORT")
-            Call Colexit()
+            TestErreur = True
             Exit Sub
         End If
         wsExcel = wbExcel.Worksheets("LAITAGES")
@@ -507,7 +496,7 @@ Public Module Program
 
         If NbLaitages > MaxDenrees Then
             Call Reporting("LAITAGES", "ARRET", "Nombre de laitages dépasse la dimension > " & MaxDenrees, "RAPPORT")
-            Call Colexit()
+            TestErreur = True
             Exit Sub
         End If
 
@@ -526,14 +515,8 @@ Public Module Program
 
             For i = 1 To NbLaitages
                 Laitage(i) = wsExcel.Cells(i + 1, 1).Value
-                PoidsTest = wsExcel.Cells(i + 1, 2).Value
-                If VarType(wsExcel.Cells(i + 1, 2).Value) = 5 Then
-                    QuantLait(i) = wsExcel.Cells(i + 1, 2).Value
-                Else
-                    TexteMsg = "Quantité " & PoidsTest & "  à la ligne " & i + 1 & " n'est pas un nombre!"
-                    Call Reporting("LAITAGES", "ALERTE", TexteMsg, "LAITAGES")
-                    NbErreur += 1
-                End If
+                Call VerifNumeric(wsExcel.Cells(i + 1, 2).Value, "Entier", "LAITAGES", i, 2) 'vérification de la quantité
+                QuantLait(i) = ValeurI
 
                 TestPrepa = wsExcel.Cells(i + 1, 3).Value
                 TestPrepa = TestPrepa.ToUpper()
@@ -545,6 +528,8 @@ Public Module Program
                     PtotLait += QuantLait(i) * Equiv(i)
                 End If
                 CPLait = wsExcel.Cells(i + 1, 5).Value
+
+                Call VerifNumeric(wsExcel.Cells(i + 1, 6).Value, "Reel", "LAITAGES", i, 6)  'vérification du Poids Global
 
             Next i
         End If
@@ -560,7 +545,7 @@ Public Module Program
 
             If Nbanti > MaxDenrees Then
                 Call Reporting("ANTICIPES", "ARRET", "Nombre de denrées Anticipees dépasse la dimension > " & MaxDenrees, "RAPPORT")
-                Call Colexit()
+                TestErreur = True
                 Exit Sub
             End If
         Else
@@ -568,76 +553,64 @@ Public Module Program
             wsExcel.Name = "ANTICIPES"
         End If
         If Nbanti > 0 Then
-                ' tri des anticipes
-                col1 = 2
-                Mode1 = eSortOrder.Descending
-                col2 = 3
-                Mode2 = eSortOrder.Ascending
-                col3 = 4
-                Mode3 = eSortOrder.Descending
+            ' tri des anticipes
+            col1 = 2
+            Mode1 = eSortOrder.Descending
+            col2 = 3
+            Mode2 = eSortOrder.Ascending
+            col3 = 4
+            Mode3 = eSortOrder.Descending
             Call TriMultiple("ANTICIPES", col1, Mode1, col2, Mode2, col3, Mode3, 7, Nbanti + 1)
 
             For i = 1 To Nbanti
-                    NomAnti(i) = wsExcel.Cells(i + 1, 1).Value          'Nom de la famille
-                    TestType = wsExcel.Cells(i + 1, 2).Value
-                    TestType = TestType.Substring(0, 1)
-                    TestType = TestType.ToUpper()
-                    If TestType = "V" Or TestType = "P" Or TestType = "S" Then
-                        TypeAnti(i) = TestType                          ' type de produit
-                    Else
-                        TexteMsg = "Type " & wsExcel.Cells(i + 1, 2).Value & " à la ligne " & i + 1 & " n'est pas reconnue"
-                        Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "ANTICIPES")
-                        NbErreur += 1
-                    End If
-                    DescAnti(i) = wsExcel.Cells(i + 1, 3).Value             'Description produit
+                NomAnti(i) = wsExcel.Cells(i + 1, 1).Value          'Nom de la famille
+                TestType = wsExcel.Cells(i + 1, 2).Value
+                TestType = TestType.Substring(0, 1)
+                TestType = TestType.ToUpper()
+                If TestType = "V" Or TestType = "P" Or TestType = "S" Then
+                    TypeAnti(i) = TestType                          ' type de produit
+                Else
+                    TexteMsg = "Type " & wsExcel.Cells(i + 1, 2).Value & " à la ligne " & i + 1 & " n'est pas reconnue"
+                    Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "ANTICIPES")
+                    NbErreur += 1
+                End If
+                DescAnti(i) = wsExcel.Cells(i + 1, 3).Value             'Description produit
 
-                    If TypeAnti(i) = "V" Then
-                        If VarType(wsExcel.Cells(i + 1, 4).Value) = 5 Then      'teste le contenu de la cellule: vartype=5 => nombre
-                            PoidsAnti(i) = wsExcel.Cells(i + 1, 4).Value        'Poids produit
-                        Else
-                            PoidsTest = wsExcel.Cells(i + 1, 4).Value
-                            TexteMsg = "Poids " & PoidsTest & "  à la ligne " & i + 1 & " n'est pas un nombre!"
+                If TypeAnti(i) = "V" Then
+                    Call VerifNumeric(wsExcel.Cells(i + 1, 4).Value, "Reel", "ANTICIPES", i, 4)  'vérification du Poids 
+                    PoidsAnti(i) = ValeurR
+                Else
+                    TestPrepa = wsExcel.Cells(i + 1, 4).Value
+                    TestPrepa = TestPrepa.Substring(0, 1)
+                    TestPrepa = TestPrepa.ToUpper()
+                    TailleAnti(i) = TestPrepa
+                    Select Case TestPrepa
+                        Case "P"            'Taille petite => poids équivalent viande = 40 gr
+                            PoidsAnti(i) = 10 * CoefPrepa
+                        Case "M"            'Taille moyenne => poids = 80 gr
+                            PoidsAnti(i) = 20 * CoefPrepa
+                        Case "G"            'Taille grande => poids = 120 gr
+                            PoidsAnti(i) = 30 * CoefPrepa
+                        Case Else
+                            TexteMsg = "Preparation ou salade " & DescAnti(i) & " Taille Petit-Moyen-Gros non reconnue"
                             Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "ANTICIPES")
                             NbErreur += 1
-                        End If
+                    End Select
+                End If
 
-                    Else
-                        TestPrepa = wsExcel.Cells(i + 1, 4).Value
-                        TestPrepa = TestPrepa.Substring(0, 1)
-                        TestPrepa = TestPrepa.ToUpper()
-                        TailleAnti(i) = TestPrepa
-                        Select Case TestPrepa
-                            Case "P"            'Taille petite => poids équivalent viande = 40 gr
-                                PoidsAnti(i) = 10 * CoefPrepa
-                            Case "M"            'Taille moyenne => poids = 80 gr
-                                PoidsAnti(i) = 20 * CoefPrepa
-                            Case "G"            'Taille grande => poids = 120 gr
-                                PoidsAnti(i) = 30 * CoefPrepa
-                            Case Else
-                                TexteMsg = "Preparation ou salade " & DescAnti(i) & " Taille Petit-Moyen-Gros non reconnue"
-                                Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "ANTICIPES")
-                                NbErreur += 1
-                        End Select
-                    End If
+                Call VerifNumeric(wsExcel.Cells(i + 1, 5).Value, "Entier", "ANTICIPES", i, 5) 'vérification de la quantité
+                QuantAnti(i) = ValeurI
 
-                    PoidsTest = wsExcel.Cells(i + 1, 5).Value
-                    If VarType(wsExcel.Cells(i + 1, 5).Value) = 5 Then       'teste le contenu de la cellule: vartype=5 => nombre
-                        QuantAnti(i) = wsExcel.Cells(i + 1, 5).Value          'Quantité de produit
-                    Else
-                        TexteMsg = "Quantité " & PoidsTest & "  à la ligne " & i + 1 & " n'est pas un nombre!"
-                        Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "ANTICIPES")
-                        NbErreur += 1
-                    End If
+                CodePrixanti(i) = wsExcel.Cells(i + 1, 6).Value                             'CodePrix
+                Call VerifNumeric(wsExcel.Cells(i + 1, 7).Value, "Reel", "ANTICIPES", i, 7)  'vérification du Poids Global
 
-                    CodePrixanti(i) = wsExcel.Cells(i + 1, 6).Value           'CodePrix
+                '  Cumul des poids suivant le type de produit
+                If TypeAnti(i) = "V" Then PTotViande += PoidsAnti(i) * QuantAnti(i)
+                If TypeAnti(i) = "P" Then PTotPrepa += PoidsAnti(i) * QuantAnti(i)
+                If TypeAnti(i) = "S" Then PTotSalad += PoidsAnti(i) * QuantAnti(i)
 
-                    '  Cumul des poids suivant le type de produit
-                    If TypeAnti(i) = "V" Then PTotViande += PoidsAnti(i) * QuantAnti(i)
-                    If TypeAnti(i) = "P" Then PTotPrepa += PoidsAnti(i) * QuantAnti(i)
-                    If TypeAnti(i) = "S" Then PTotSalad += PoidsAnti(i) * QuantAnti(i)
-
-                Next
-            End If
+            Next
+        End If
 
 
 
@@ -646,16 +619,14 @@ Public Module Program
         '*********************************************************
         If FeuilleExiste("FAMILLES") = False Then
             Call Reporting("FAMILLES", "ARRET", "Feuille manquante", "RAPPORT")
-            Call Colexit()
+            TestErreur = True
             Exit Sub
         End If
         wsExcel = wbExcel.Worksheets("FAMILLES")
-
         NbFamilles = GetNonEmptyRows() - 1
-
         If NbFamilles > MaxFamilles Then
             Call Reporting("FAMILLES", "ARRET", "Nombre de laitages dépasse la dimension > " & MaxFamilles, "RAPPORT")
-            Call Colexit()
+            TestErreur = True
             Exit Sub
         End If
 
@@ -695,7 +666,7 @@ Public Module Program
         ' teste le nombre de bénéficiaires
         If NbTotViande = 0 Then
             Call Reporting("FAMILLES", "ARRET", " Le nombre de bénéficiaires est nul", "FAMILLES")
-            Call Colexit()
+            TestErreur = True
             Exit Sub
         End If
 
@@ -724,6 +695,13 @@ Public Module Program
             PoidsTheo(i) = ModuleViande * NBenef(i)
         Next
 
+        '**********************************************************
+        '   FIN DE LECTURE ,  ARRET SANS AIDA SI ERREURS
+        '**********************************************************
+        If NbErreur > 0 Then
+            TestErreur = True
+            Exit Sub
+        End If
         '*********************************************************
         ' Mise en forme onglet RESULTATS
         '*********************************************************
@@ -734,9 +712,9 @@ Public Module Program
         wsExcel = wbExcel.Worksheets.Add("RESULTATS")                  'ajoute une nouvelle feuille
         wsExcel.Name = "RESULTATS"
 
-        wsExcel.Cells(1, 1).Value = "N° CAISSE"
+        wsExcel.Cells(1, 1).Value = "Nr CAISSE"
         wsExcel.Cells(1, 2).Value = "FAMILLE"
-        wsExcel.Cells(1, 3).Value = "Bénéficiaires"
+        wsExcel.Cells(1, 3).Value = "Beneficiaires"
         wsExcel.Cells(1, 4).Value = "Sans Cochon"
         wsExcel.Cells(1, 5).Value = "Sans Viande"
 
@@ -790,8 +768,8 @@ Public Module Program
             For i = 1 To NbDenrees
                 wsExcel.Cells(1, i + Decal).Value = Description(i) & " " & Poids(i) & " Gr (" & Quant(i) & ")"
             Next
-            wsExcel.Cells(1, NbDenrees + Decal + 1).Value = "Poids attribué"
-            wsExcel.Cells(1, NbDenrees + Decal + 2).Value = "Poids théorique"
+            wsExcel.Cells(1, NbDenrees + Decal + 1).Value = "Poids attribue"
+            wsExcel.Cells(1, NbDenrees + Decal + 2).Value = "Poids theorique"
             wsExcel.Cells(1, NbDenrees + Decal + 3).Value = "Ecart"
             wsExcel.Cells(NbFamilles + 2, 1).Value = "SOMME"
             wsExcel.Cells(NbFamilles + 2, 2).Value = "SOMME"
@@ -808,6 +786,7 @@ Public Module Program
 
             ParamEcart = 1             'type d'écart = écart calculé
             Call Attribution3(NbDenrees, ResteQuant, Poids, ViandeSC, ViandeSV, ParamEcart)
+            If TestErreur Then Exit Sub
 
             'impression des résultats
 
@@ -925,7 +904,7 @@ Public Module Program
             For i = 1 To NbPreparations
                 wsExcel.Cells(1, i + Decal).Value = Preparation(i) & " " & TaillePrepa(i) & " (" & QuantPrepa(i) & ")"
             Next
-            wsExcel.Cells(1, NbPreparations + Decal + 1).Value = "Nbre attribué"
+            wsExcel.Cells(1, NbPreparations + Decal + 1).Value = "Nbre attribue"
 
             '*******************************************************************
             ' Attribution des Plats Preparés
@@ -934,6 +913,7 @@ Public Module Program
 
             ParamEcart = 2      'ecart donné par l'ordre des familles, en colonne I
             Call Attribution3(NbPreparations, ResteQuant, PoidsPrepa, PrepaSC, PrepaSV, ParamEcart)
+            If TestErreur Then Exit Sub
 
             'report nbre de plats preparés par famille
             SousTotal = NbPrepaAnti + NbPreparations
@@ -1007,7 +987,7 @@ Public Module Program
                 wsExcel.Cells(1, i + Decal).Value = Salade(i) & " " & TailleSalade(i) & " (" & QuantSalade(i) & ")"
                 QuantTotSalad += QuantSalade(i)
             Next
-            wsExcel.Cells(1, Decal + NbSalades + 1).Value = "Nbre Attribué"
+            wsExcel.Cells(1, Decal + NbSalades + 1).Value = "Nbre Attribue"
 
             '***********************************************************************
             ' Attribution des SALADES
@@ -1016,6 +996,7 @@ Public Module Program
 
             ParamEcart = 2      'ecart donné par l'ordre des familles, en colonne I
             Call Attribution3(NbSalades, ResteQuant, PoidsSalade, SaladeSC, SaladeSV, ParamEcart)
+            If TestErreur Then Exit Sub
 
             SousTotal = NbSalades + NbSaladeAnti
             For i = 1 To NbFamilles
@@ -1263,7 +1244,7 @@ Public Module Program
 
         If NbDivers > MaxDenrees Then
             Call Reporting("DIVERS", "ARRET", "Nombre de Divers dépasse la dimension > " & MaxDenrees, "RAPPORT")
-            Call Colexit()
+            TestErreur = True
             Exit Sub
         End If
 
@@ -1579,9 +1560,9 @@ Public Module Program
 
                     If NumeMaxi = 0 Then
                         ' pas de famille trouvée en écart maxi   = problème
-                        TexteMsg = "(Sub. Attribution3) Arrêt à la denrée " & "j " & " sur " & Nbdenrees & " Répartition incomplète"
+                        TexteMsg = "(Sub. Attribution3) Arrêt à la denrée " & j & " sur " & Nbdenrees & " Répartition incomplète"
                         Call Reporting("RESULTATS", "ARRET", TexteMsg, "RESULTATS")
-                        Call Colexit()
+                        TestErreur = True
                         Exit Sub
                     End If
                 Else
@@ -1659,25 +1640,40 @@ SiErreur:
         If h > 0 Then AlphaCol = Chr(64 + h) & Chr(64 + k - (26 * h)) Else AlphaCol = Chr(64 + k)
     End Function
 
-    'Public Function NumCol(col As String) As Integer
-    ' fonction de conversion de la colonne, nommée en lettre en numéro 
-    'Dim total = 0
-    'For Each c As Char In col
-    'Dim num = Asc(c) - 64
-    '        total = total * 26 + num
-    'Next
-    '   NumCol = total - 1
-    'End Function
+    Public Sub VerifNumeric(Cellule As Object, TypeRetour As String, Onglet As String, i As Integer, col As Integer)
+        ' Vérifie si une cellule est bien numérique:
+        ' reçoit la cellule, le type recherché, et sa localisation en cas d'erreur: onglet, ligne et colonne 
+        ' renvoie la donnée ValeurR ou ValeurI si on veut du type Single ou Integer  (variables publiques)
+        ' ne fait rien si cellule vide
+        ' sinon affiche un message dans l'onglet Reporting avec l'onglet, la ligne et la colonne
+        ' impose une sortie avec TestErreur = true car sinon, bug à l'utilisation  (variable publique)
+        '--------------------------------------------------------------------------------------------
+        'Dim stroption As String
+        Dim ColAlpha As String              ' conversion de la colonne en alphanumérique
 
+        ValeurR = 0
+        ValeurI = 0
+        If IsNumeric(Cellule) Then
+            If TypeRetour = "Reel" Then ValeurR = CType(Cellule, Single)
+            If TypeRetour = "Entier" Then ValeurI = CType(Cellule, Integer)
+
+        ElseIf Cellule <> "" Then
+            ColAlpha = AlphaCol(col)
+            TexteMsg = " A la ligne " & i + 1 & " Colonne " & ColAlpha & ", contenu:  " & Cellule & " n'est pas un nombre!"
+            Call Reporting(Onglet, "ARRET", TexteMsg, Onglet)
+            NbErreur += 1
+            TestErreur = True
+        End If
+    End Sub
     Public Sub TriMultiple(Feuille As String, Col1 As Integer, Mode1 As eSortOrder, Col2 As Integer, Mode2 As eSortOrder,
                     Col3 As Integer, Mode3 As eSortOrder, nbcol As Integer, nblignes As Integer)
+        '------------------------------------------------------------------------------------
+        ' Il y a toujours une ligne d'entêtes
 
-        Dim h As Integer
         Dim AlphaColTri As String
 
         wsExcel = wbExcel.Worksheets(Feuille)
-        h = nbcol
-        AlphaColTri = AlphaCol(h)
+        AlphaColTri = AlphaCol(nbcol)
         Col1 -= 1                   'Enlève -1 car les numéros de colonne débutent à 0: col 0 = col A
         Col2 -= 1
         Col3 -= 1
@@ -1716,7 +1712,6 @@ SiErreur:
         Dim i, j As Integer
         Dim SommeZeu As Single
         Dim SommeLait As Single
-        Dim Cellule As String
         Dim NbErreur As Integer
         Dim EnTete As String
         Dim Complet As String
@@ -1738,11 +1733,13 @@ SiErreur:
         Dim NbSaladeAnti As Integer
         Dim NbDivers As Integer
         Dim TestType As String
-        Dim PoidsTest As String
+        Dim TestAnti As Boolean
+
+        TestErreur = False              ' initialisation du Test sur Nbre d'erreurs
+        NbErreur = 0
 
         wsExcel = wbExcel.Worksheets("FAMILLES")
         NbFamilles = GetNonEmptyRows() - 1
-
 
         wsExcel = wbExcel.Worksheets("ANTICIPES")
         NbAnti = GetNonEmptyRows() - 1
@@ -1768,20 +1765,14 @@ SiErreur:
                 DescAnti(i) = wsExcel.Cells(i + 1, 3).Value             'Description produit
 
                 If TypeAnti(i) = "V" Then
-                    If VarType(wsExcel.Cells(i + 1, 4).Value) = 5 Then      'teste le contenu de la cellule: vartype=5 => nombre
-                        PoidsAnti(i) = wsExcel.Cells(i + 1, 4).Value        'Poids produit Viande
-                    Else
-                        PoidsTest = wsExcel.Cells(i + 1, 4).Value
-                        TexteMsg = "Poids " & PoidsTest & "  à la ligne " & i + 1 & " n'est pas un nombre!"
-                        Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "ANTICIPES")
-                        NbErreur += 1
-                    End If
+                    Call VerifNumeric(wsExcel.Cells(i + 1, 4).Value, "Reel", "ANTICIPES", i, 4)
+                    If TestErreur Then Exit Sub
+                    PoidsAnti(i) = ValeurR
                 End If
 
             Next i
         End If
 
-        NbErreur = 0
         Decal = 5
 
         If NbDenreesAnti > 0 Then
@@ -1792,31 +1783,28 @@ SiErreur:
                 Complet = wsExcel.Cells(1, k + Decal).Value             ' reprend l'entête de colonne
                 IntPos = InStr(Complet, Separ)
                 Brut = Complet.Remove(IntPos - 2)                   ' entête réduite à description & poids 
+                TestAnti = False
 
                 For j = 1 To NbAnti                                 ' recherche dans la liste des anticipés la denrée pour trouver le poids
                     EnTete = DescAnti(j) & " " & PoidsAnti(j)       ' calcule l'entête réduite
                     If Brut = EnTete Then
-                        Poids(k) = PoidsAnti(j)                     ' si en-tête ok, affecte le poids à la denrée de la colonne
+                        Poids(k) = PoidsAnti(j)
+                        TestAnti = True ' si en-tête ok, affecte le poids à la denrée de la colonne
                         Exit For
                     End If
-                    TexteMsg = "Denrée en Col " & k + Decal & "  Description + Poids non reconnu =" & Brut
+                Next j
+                If TestAnti = False Then
+                    TexteMsg = "Denrée en Colonne " & k + Decal & ":  " & Complet & " non reconue dans l'onglet ANTICIPES, pas de synthèse AIDA"
                     Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RESULTATS")
                     NbErreur += 1
-                Next j
+                End If
 
                 TotalFamille = 0
                 For i = 1 To NbFamilles                                 ' balaye les familles avec les données de la denrée en tête
-                    Cellule = wsExcel.Cells(i + 1, Decal + k).Value     ' quantité relue 
-                    If String.IsNullOrEmpty(Cellule) = False Then       ' teste si pas de modif sauvage des quantités
-                        If IsNumeric(Cellule) Then
-                            Panier(i) += Cellule * Poids(k)             ' incrémente le panier = quantité *poids
-                        Else
-                            TexteMsg = "Ligne " & i + 1 & " Col " & k + Decal & "  cellule " & Cellule & "  n'est pas un nombre"
-                            Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RESULTATS")
-                            NbErreur += 1
-                        End If
-                    End If
-                    TotalFamille += Cellule
+                    Call VerifNumeric(wsExcel.Cells(i + 1, Decal + k).Value, "Entier", "RESULTATS", i, Decal + k)
+                    If TestErreur Then Exit Sub
+                    Panier(i) += ValeurI * Poids(k)             ' incrémente le panier = quantité *poids
+                    TotalFamille += ValeurI
                 Next i
                 wsExcel.Cells(NbFamilles + 2, Decal + k).Value = TotalFamille
             Next k
@@ -1836,25 +1824,15 @@ SiErreur:
             wsExcel = wbExcel.Worksheets("RESULTATS")
             For i = 1 To NbFamilles
                 For j = 1 To NbDenrees
-                    Cellule = wsExcel.Cells(i + 1, Decal + j).Value     'lecture de la quantité 
-                    If String.IsNullOrEmpty(Cellule) = False Then
-                        If IsNumeric(Cellule) Then
-                            Panier(i) += Cellule * Poids(j)         ' incrémente le panier = quantité * poids
-                        Else
-                            TexteMsg = "Ligne " & i + 1 & " Col " & j + Decal & "  cellule " & Cellule & "  n'est pas un nombre"
-                            Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RESULTATS")
-                            NbErreur += 1
-                        End If
-                    End If
+                    Call VerifNumeric(wsExcel.Cells(i + 1, Decal + j).Value, "Entier", "RESULTATS", i, Decal + j)
+                    If TestErreur Then Exit Sub
+                    Panier(i) += ValeurI * Poids(j)             ' incrémente le panier = quantité *poids
                 Next
                 '  -------- écriture du panier après mise à jour -------------------------------------------------
                 wsExcel.Cells(i + 1, Decal + NbDenrees + 1).Value = Panier(i)
                 wsExcel.Cells(i + 1, Decal + NbDenrees + 3).Value = Panier(i) - wsExcel.Cells(i + 1, Decal + NbDenrees + 2).Value
             Next
-            If NbErreur > 0 Then
-                Call Colexit()
-                Exit Sub
-            End If
+
             '---------calcul des totaux par produit--------------------------
             For j = 1 To NbDenrees
                 TotalFamille = 0
@@ -1902,7 +1880,6 @@ SiErreur:
             Decal += NbSalades + NbSaladeAnti + 1
         End If
 
-
         '------calcul des totaux pour les laitages ----------------------------------------------------------
         wsExcel = wbExcel.Worksheets("LAITAGES")
         NbLaitages = GetNonEmptyRows() - 1
@@ -1913,28 +1890,17 @@ SiErreur:
             Next
 
             wsExcel = wbExcel.Worksheets("RESULTATS")
-            NbErreur = 0
+
             For i = 1 To NbFamilles
                 SommeLait = 0
                 SommeZeu = 0
                 For j = 1 To NbLaitages
-                    Cellule = wsExcel.Cells(i + 1, Decal + j).Value
-                    If String.IsNullOrEmpty(Cellule) = False Then
-                        If IsNumeric(Cellule) Then
-                            If CatLait(j) = "ZEU" Then
-                                SommeZeu += Cellule * Equiv(j)
-                            Else
-                                SommeLait += Cellule
-                            End If
-                        Else
-                            wsExcel = wbExcel.Worksheets("RAPPORT")
-                            nbReport += 1
-                            wsExcel.Cells(nbReport, 1).Value = "RESULTATS"
-                            wsExcel.Cells(nbReport, 2).Value = "Ligne " & i + 1 & " Col " & j + Decal & "  cellule " & Cellule & "  n'est pas un nombre"
-                            wsExcel.Cells(nbReport, 8).Value = "ALERTE"
-                            wsExcel = wbExcel.Worksheets("RESULTATS")
-                            NbErreur += 1
-                        End If
+                    Call VerifNumeric(wsExcel.Cells(i + 1, Decal + j).Value, "Entier", "RESULTATS", i, Decal + j)
+                    If TestErreur Then Exit Sub
+                    If CatLait(j) = "ZEU" Then
+                        SommeZeu += ValeurI * Equiv(j)
+                    Else
+                        SommeLait += ValeurI
                     End If
                 Next
                 wsExcel.Cells(i + 1, Decal + NbLaitages + 1).Value = SommeLait
@@ -1965,6 +1931,10 @@ SiErreur:
                 wsExcel.Cells(NbFamilles + 2, Decal + j).Value = TotalFamille
             Next j
         End If
+
+        ' --------Gestion des erreurs: sortie sans AIDA en cas d'erreurs ------------------------
+        If NbErreur > 0 Then TestErreur = True
+
     End Sub
 
     Public Sub AIDA()
@@ -2007,7 +1977,6 @@ SiErreur:
         Dim AlphaColTri As String
 
         Dim Contenu As String
-        Dim Erreur As Boolean
         Dim Ecart As Single
         Dim SousTotal As Single
         Dim TotalArrondi As Single
@@ -2036,7 +2005,6 @@ SiErreur:
         Dim PoidsPrecedent As Single
         Dim TestPrepa As String
         'Dim StrOption As String
-        Dim PoidsTest As String
         Dim NbErreur As Integer
         Dim TotalFamille As Single
         Dim PoidsVerif As Single
@@ -2045,6 +2013,7 @@ SiErreur:
         ' chemin réseau générique pour l'enregistrement des images de code-barre
         ' CheminBureau = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
         CheminBureau = Environment.CurrentDirectory
+        NbErreur = 0
 
         wsExcel = wbExcel.Worksheets("FAMILLES")
         NbFamilles = GetNonEmptyRows() - 1
@@ -2056,7 +2025,6 @@ SiErreur:
         If nbPrix > MaxPrix Then
             TexteMsg = "Nombre de prix dépasse la dimension > " & MaxPrix
             Call Reporting("PRIX", "ARRET", TexteMsg, "PRIX")
-            Call Colexit()
             Exit Sub
         End If
 
@@ -2081,7 +2049,7 @@ SiErreur:
         Else
             TexteMsg = "Pas de code prix documenté"
             Call Reporting("PRIX", "ARRET", TexteMsg, "PRIX")
-            Call Colexit()
+            Exit Sub
         End If
 
         NbCat = 0
@@ -2115,7 +2083,6 @@ SiErreur:
                 Onglet = "PREPARATIONS"
                 Call VerifPoids(j, nbPrix, CodePrixDenree(j), CodePrix, UnitAIDA, PoidsVerif, TestPrepa, Onglet)
             Next j
-
 
             Call ListeCategorie(NbPreparations, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
             UnitAIDA, Categorie, CatAIDA, UnAIDA, PrixAIDA, PrixListe)
@@ -2194,18 +2161,12 @@ SiErreur:
                 End If
                 DescAnti(i) = wsExcel.Cells(i + 1, 3).Value             'Description produit
 
-                If TypeAnti(i) = "V" Then
-                    If VarType(wsExcel.Cells(i + 1, 4).Value) = 5 Then      'teste le contenu de la cellule: vartype=5 => nombre
-                        PoidsAnti(i) = wsExcel.Cells(i + 1, 4).Value        'Poids produit Viande
-                    Else
-                        PoidsTest = wsExcel.Cells(i + 1, 4).Value
-                        TexteMsg = "Poids " & PoidsTest & "  à la ligne " & i + 1 & " n'est pas un nombre!"
-                        Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "ANTICIPES")
-                        NbErreur += 1
-                    End If
-
+                If TypeAnti(i) = "V" Then                               'Poids des viandes
+                    Call VerifNumeric(wsExcel.Cells(i + 1, 4).Value, "Reel", "ANTICIPES", i, 4)
+                    If TestErreur Then Exit Sub
+                    PoidsAnti(i) = ValeurR
                 Else
-                    TestPrepa = wsExcel.Cells(i + 1, 4).Value       'décode la taille
+                    TestPrepa = wsExcel.Cells(i + 1, 4).Value       'décode la taille 
                     TestPrepa = TestPrepa.Substring(0, 1)
                     TestPrepa = TestPrepa.ToUpper()
 
@@ -2217,7 +2178,7 @@ SiErreur:
                         Case "G"                                    'Taille grande => poids = 120 gr
                             PoidsAnti(i) = 30 * CoefPrepa
                         Case Else
-                            TexteMsg = "Preparation ou salade " & DescAnti(i) & " Taille Petit-Moyen-Gros non reconnue"
+                            TexteMsg = "Preparation ou salade, ligne " & i + 1 & " Taille " & DescAnti(i) & " non reconnue"
                             Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "ANTICIPES")
                             NbErreur += 1
                     End Select
@@ -2248,20 +2209,18 @@ SiErreur:
                 End If
             Next j
             If Test = False Then
-                TexteMsg = "Catégorie " & Categorie(i) & " non déclarée dans la base PRIX"
-                Call Reporting("PRIX", "ARRET", TexteMsg, "PRIX")
-                Call Colexit()
-                Exit Sub
+                TexteMsg = "Code Prix utilisé: " & Categorie(i) & " non déclaré dans la base PRIX"
+                Call Reporting("PRIX", "ALERTE", TexteMsg, "PRIX")
+                NbErreur += 1
             End If
 
-            'Console.WriteLine("Categorie " & i & " cat = " & Categorie(i) & " unite " & UnAIDA(i))
+            'Console.WriteLine("Categorie " & i & " Code Prix = " & Categorie(i) & " unite " & UnAIDA(i))
 
         Next i
         'StrOption = Console.ReadLine()
         '-----------Formattage feuille AIDA-----------------------------------------------------
         If FeuilleExiste("AIDA") = True Then
             wbExcel.Worksheets.Delete("AIDA")
-
         End If
 
         wsExcel = wbExcel.Worksheets.Add("AIDA")
@@ -2297,6 +2256,9 @@ SiErreur:
             wsExcel.Cells(2, Decal + j).Value = Categorie(j) & " " & UnAIDA(j)
         Next
 
+        '------Arret si erreur détectée ---------------------
+        If NbErreur > 0 Then Exit Sub
+
         '------------------Vérification des totaux en bas de colonne---------------------------------
         wsExcel = wbExcel.Worksheets("RESULTATS")
         Decal = 5
@@ -2309,7 +2271,6 @@ SiErreur:
             Call TestSomme2(NbPreparations + NbPrepaAnti)
             Decal += NbPrepaAnti
             If NbPreparations > 0 Then Decal += NbPreparations + 1
-
         End If
         If NbSalades > 0 Or NbSaladeAnti > 0 Then
             Call TestSomme2(NbSalades + NbSaladeAnti)
@@ -2346,6 +2307,7 @@ SiErreur:
             Next i
         End If
 
+
         ' ****************************************************************************************
         '      CALCUL DES CUMUL  de poids ou de taille, famille par famille
         '******************************************************************************************
@@ -2355,7 +2317,6 @@ SiErreur:
                 PoidsCat(k) = 0
             Next k
             Decal = 5
-            Erreur = False
 
             '--------------Report des cumuls pour les viandes anticipées --------------------------------------------
             If Nbanti > 0 Then
@@ -2374,15 +2335,12 @@ SiErreur:
                 ' k= nombre de viandes anticipées recalculées dans la liste réduite
 
                 If NbDenreesAnti <> k Then
-                    TexteMsg = "Indices de denrées anticipées inexactes: nbdenreesAnti = " & NbDenreesAnti & "  k = " & k
+                    TexteMsg = "Nombre de viandes anticipées inexactes: NbDenreesAnti = " & NbDenreesAnti & "  k = " & k
                     Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "RESULTATS")
+                    NbErreur += 1
                 End If
-                Call ReportCumul(NbDenreesAnti, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv, Erreur)
+                Call ReportCumul(NbDenreesAnti, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv)
                 Decal += NbDenreesAnti
-                If Erreur Then
-                    Call Colexit()
-                    Exit Sub
-                End If
             End If
 
             '----------report des cumuls pour les viandes -----------------------------------------------
@@ -2392,12 +2350,8 @@ SiErreur:
                     CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value
                     Poids(j) = wsExcel.Cells(j + 1, 2).Value / 1000
                 Next j
-                Call ReportCumul(nbdenrees, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv, Erreur)
+                Call ReportCumul(nbdenrees, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv)
                 Decal = Decal + nbdenrees + 3
-                If Erreur Then
-                    Call Colexit()
-                    Exit Sub
-                End If
             End If
 
             '--------------Report des cumuls pour les preparations anticipées --------------------------------------------
@@ -2412,15 +2366,12 @@ SiErreur:
                     End If
                 Next j
                 If NbPrepaAnti <> k Then
-                    TexteMsg = "Indices de preparations anticipées inexactes: nbPrepaAnti = " & NbPrepaAnti & "  k = " & k
+                    TexteMsg = "Nombre de préparations anticipées inexactes: nbPrepaAnti = " & NbPrepaAnti & "  k = " & k
                     Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "RESULTATS")
+                    NbErreur += 1
                 End If
-                Call ReportCumul(NbPrepaAnti, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv, Erreur)
+                Call ReportCumul(NbPrepaAnti, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv)
                 Decal += NbPrepaAnti
-                If Erreur Then
-                    Call Colexit()
-                    Exit Sub
-                End If
             End If
             '--------report des cumuls pour les Préparations------------------------------------------------------
             If NbPreparations > 0 Then
@@ -2429,12 +2380,8 @@ SiErreur:
                     CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value   ' Code Prix
                     Poids(j) = wsExcel.Cells(j + 1, 7).Value
                 Next j
-                Call ReportCumul(NbPreparations, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv, Erreur)
+                Call ReportCumul(NbPreparations, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv)
                 Decal = Decal + NbPreparations + 1
-                If Erreur Then
-                    Call Colexit()
-                    Exit Sub
-                End If
             End If
             '--------------Report des cumuls pour les salades anticipées --------------------------------------------
             If Nbanti > 0 Then
@@ -2448,15 +2395,12 @@ SiErreur:
                     End If
                 Next j
                 If NbSaladeAnti <> k Then
-                    TexteMsg = "Indices de salades anticipées inexactes: nbPrepaAnti = " & NbPrepaAnti & "  k = " & k
+                    TexteMsg = "Nombre de salades anticipées inexactes: nbSaladeAnti = " & NbSaladeAnti & "  k = " & k
                     Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "RESULTATS")
+                    NbErreur += 1
                 End If
-                Call ReportCumul(NbSaladeAnti, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv, Erreur)
+                Call ReportCumul(NbSaladeAnti, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv)
                 Decal += NbSaladeAnti
-                If Erreur Then
-                    Call Colexit()
-                    Exit Sub
-                End If
             End If
             '-----------Report des cumuls pour les salades-----------------------------------------------------
             If NbSalades > 0 Then
@@ -2465,12 +2409,8 @@ SiErreur:
                     CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value
                     Poids(j) = wsExcel.Cells(j + 1, 7).Value
                 Next j
-                Call ReportCumul(NbSalades, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv, Erreur)
+                Call ReportCumul(NbSalades, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv)
                 Decal = Decal + NbSalades + 1
-                If Erreur Then
-                    Call Colexit()
-                    Exit Sub
-                End If
             End If
             '---------------------------------------------------------------------
             If NbLaitages > 0 Then
@@ -2479,16 +2419,9 @@ SiErreur:
                     Equiv(j) = wsExcel.Cells(j + 1, 4).Value
                     CodePrixDenree(j) = wsExcel.Cells(j + 1, 5).Value
                     Poids(j) = wsExcel.Cells(j + 1, 6).Value
-                    ' Console.WriteLine("Laitage j = " & j & " Equiv " & Equiv(j) & "Code " & CodePrixDenree(j) & " poids " & Poids(j))
-
                 Next j
-                ' StrOption = Console.ReadLine()
-                Call ReportCumul(NbLaitages, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv, Erreur)
+                Call ReportCumul(NbLaitages, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv)
                 Decal = Decal + NbLaitages + 2
-                If Erreur Then
-                    Call Colexit()
-                    Exit Sub
-                End If
             End If
             '----------------------------------------------------------------------------
             If NbDivers > 0 Then
@@ -2497,11 +2430,8 @@ SiErreur:
                     CodePrixDenree(j) = wsExcel.Cells(j + 1, 2).Value
                     Poids(j) = wsExcel.Cells(j + 1, 3).Value
                 Next j
-                Call ReportCumul(NbDivers, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv, Erreur)
-                If Erreur Then
-                    Call Colexit()
-                    Exit Sub
-                End If
+                Call ReportCumul(NbDivers, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv)
+
             End If
             '----------------------------------------------------------------------------
             wsExcel = wbExcel.Worksheets("AIDA")        'Ecriture des résultats dans l'onglet AIDA
@@ -2644,10 +2574,12 @@ SiErreur:
                 Case 0      ' valeur nulle, rien de documenté
                     TexteMsg = "La somme de la colonne " & AlphaColTri & " est nulle"
                     Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RESULTATS")
+                    NbErreur += 1
                 Case Quant      ' valeur égale à la quantité déclarée, RAS
                 Case Else       ' valeur différente = alerte
                     TexteMsg = "Col " & AlphaColTri & " " & Intitule(0) & ":  Somme= " & Total & " différente de la quantité déclarée" & Quant
                     Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RESULTATS")
+                    NbErreur += 1
             End Select
         Next j
 
@@ -2680,12 +2612,13 @@ SiErreur:
             If Total = 0 Then
                 TexteMsg = "La somme de la colonne " & AlphaColTri & " est nulle"
                 Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RESULTATS")
+                NbErreur += 1
             End If
         Next j
 
     End Sub
     Sub ReportCumul(nbdenrees As Integer, Decal As Integer, i As Integer, CodePrixDenree() As String, Categorie() As String,
-    PoidsCat() As Single, Poids() As Single, UnAIDA() As String, Equiv() As Single, Erreur As Boolean)
+    PoidsCat() As Single, Poids() As Single, UnAIDA() As String, Equiv() As Single)
 
         ' relecture des resultats, calcul des cumuls, denrée par denrée, à chaque catégorie en fonction de l'unité
         ' si l'unité n'est pas reconnue, sortie sous Erreur = True
@@ -2694,11 +2627,13 @@ SiErreur:
         Dim k As Integer
         Dim CatErreur As String = ""
         Dim UnitErreur As String = ""
+        Dim Erreur As Boolean
 
         wsExcel = wbExcel.Worksheets("RESULTATS")
         'Console.WriteLine("nbdenrees" & nbdenrees & "  nbcat " & NbCat)
         'Dim StrOption As String = Console.ReadLine()
         For j = 1 To nbdenrees
+            Erreur = False
             For k = 1 To NbCat
                 Select Case UCase(UnAIDA(k))
                     Case "[BOI]"
@@ -2718,9 +2653,9 @@ SiErreur:
                 End Select
             Next k
             If Erreur Then
-                TexteMsg = "ReportCumul: Pour la catégorie " & CatErreur & ", l'unité " & UnitErreur & " n'est pas reconnue"
+                TexteMsg = "(ReportCumul) Pour les Codes Prix " & CatErreur & ", l'unité " & UnitErreur & " n'est pas reconnue"
                 Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RAPPORT")
-                Exit Sub
+                NbErreur += 1
             End If
 
         Next j
@@ -2782,7 +2717,7 @@ SiErreur:
                 If unitAida(i) = "[kgM]" And PoidsVerif = 0 Then
                     TexteMsg = "Ligne " & j + 1 & " " & TestPrepa & ": unité " & unitAida(i) & " et Poids total nul, pas de valeur dans la col. AIDA  " & codeprixDenree
                     Call Reporting(Onglet, "ALERTE", TexteMsg, Onglet)
-                    Exit For
+                    NbErreur += 1
                 End If
             End If
         Next i
@@ -2930,7 +2865,7 @@ SiErreur:
 
         'Génération d'une erreur définie par l'utilisateur
         If String.IsNullOrEmpty(strChaine) Then
-            Call Reporting("AIDA", "ARRET", "Chaîne de caractères Code-Barres nulle ", "AIDA")
+            Call Reporting("AIDA", "ALERTE", "Chaîne de caractères Code-Barres nulle ", "AIDA")
             Code128 = ""
             ' MsgBox("chaine nulle ")
             Exit Function
