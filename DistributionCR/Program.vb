@@ -809,7 +809,7 @@ Public Module Program
         '*******************************************************************************
         '   TRI DES FAMILLES
         '*******************************************************************************
-        ' le tri des familles et RESULTATS se fait même sans plats preparés car 
+        ' le tri des onglets FAMILLES et RESULTATS se fait même sans plats preparés car 
         ' il sert aussi aux salades
 
         'tri des familles
@@ -854,7 +854,7 @@ Public Module Program
             col3 = 3
             Mode3 = eSortOrder.Descending
         End If
-        k = NbDenrees + NbPreparations + NbSalades + NbLaitages + Nbanti + 30
+        k = NbDenrees + NbPreparations + NbSalades + NbLaitages + Nbanti + 30           'estimation nombre de colonnes
         Call TriMultiple("RESULTATS", col1, Mode1, col2, Mode2, col3, Mode3, k, NbFamilles + 2)
 
         '***************************************************************************
@@ -1038,7 +1038,7 @@ Public Module Program
             PanierZeu(i) = 0
         Next
 
-        wsExcel.Cells("H1:J300").Clear()
+        wsExcel.Cells("H1:J" & MaxFamilles).Clear()
 
         ' tri des résultats, de la même façon
         wsExcel = wbExcel.Worksheets("RESULTATS")
@@ -1049,7 +1049,7 @@ Public Module Program
         col3 = 0
         Mode3 = eSortOrder.Descending
 
-        k = NbDenrees + NbPreparations + NbSalades + NbLaitages + Nbanti + 30
+        k = NbDenrees + NbPreparations + NbSalades + NbLaitages + Nbanti + 30       'nombre de colonnes à trier
 
         Call TriMultiple("RESULTATS", col1, Mode1, col2, Mode2, col3, Mode3, k, NbFamilles + 2)
 
@@ -2528,9 +2528,9 @@ SiErreur:
 
             Dim dT, dL, dW, dH As Single
             dT = 0                                   'coordonnées du haut de l'image
-            dL = 214 + (j - 1) * 91           ' coordonnées du coté gauche de l'image
-            dW = 91                               ' largeur de l'image
-            dH = 213                           ' hauteur de l'image
+            dL = 214 + (j - 1) * 91         ' coordonnées du coté gauche de l'image
+            dW = 91                              ' largeur de l'image
+            dH = 213                        ' hauteur de l'image
 
             Dim fileName = "Image" & j & ".png"
             Dim picture = wsExcel.Drawings.AddPicture(fileName, Path.Combine(CheminBureau, fileName))
@@ -2753,10 +2753,10 @@ SiErreur:
 
         Dim lngLargeurCodeBarres As Integer      ' Largeur du code-barres
         Dim strTypeModule As String              ' Type d'un module : 1 = barre / 0 = espace
-        Dim IntHauteur As Integer = 400          ' Hauteur de l'image
-        Dim IntLargeur As Integer = 850          ' Largeur de l'image
-        Dim IntHautModule As Integer = 300       ' hauteur des barres
-        Dim IntLargModule As Integer = 5         ' largeur des barres
+        Dim IntHauteur As Integer = 350          ' Hauteur de l'image
+        Dim IntLargeur As Integer = 900          ' Largeur de l'image
+        Dim IntHautModule As Integer = 250       ' hauteur des barres
+        Dim IntLargModule As Integer = 6       ' largeur des barres
         Dim X1 As Integer
         Dim X2 As Integer
         Dim Y1 As Integer
@@ -2779,8 +2779,11 @@ SiErreur:
         lngLargeurCodeBarres = Len(strCodeBarres) * IntLargModule              'Largeur du code-barres, "Quiet zone" comprises
 
         ' -------redimensionne la taille de l'image si nécessaire ---------------------------
-        If IntLargeur < lngLargeurCodeBarres Then IntLargeur = CInt(lngLargeurCodeBarres * 1.1)
+        If IntLargeur < lngLargeurCodeBarres Then IntLargeur = CInt(lngLargeurCodeBarres * 1.05)
         IntMargeGauche = CInt((IntLargeur - lngLargeurCodeBarres) / 2)
+
+        'TexteMsg = "Chaîne " & Len(strChaine) & " Code Barre " & Len(strCodeBarres) & " intlargeur " & IntLargeur & "  marge " & IntMargeGauche
+        'Call Reporting("Code", "ALERTE", TexteMsg, "AIDA")
 
         ' *******************************************************************
         ' création du graphique
@@ -2807,7 +2810,7 @@ SiErreur:
 
         X1 = IntMargeGauche
         X2 = X1
-        Y1 = 380
+        Y1 = 330
         Y2 = Y1 - IntHautModule
 
         '------Création de la zone de texte ------------------------------------------
@@ -2815,7 +2818,7 @@ SiErreur:
         ' Dim drawFont As New System.Drawing.Font("Arial", 35)
         ' Dim drawBrush As New System.Drawing.SolidBrush(System.Drawing.Color.Black)
 
-        Dim drawFont As New SKFont(SKTypeface.FromFamilyName("Arial"), 35)
+        Dim drawFont As New SKFont(SKTypeface.FromFamilyName("Arial"), 50)
         Dim textPaint As New SKPaint(drawFont)
         textPaint.Color = New SKColor(0, 0, 0, 255)
         g.DrawText(Contenu, 250, 50, textPaint)
