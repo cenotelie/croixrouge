@@ -4,6 +4,7 @@ Imports System.Globalization
 Imports System.IO
 Imports OfficeOpenXml
 Imports OfficeOpenXml.ExcelErrorValue
+Imports OfficeOpenXml.FormulaParsing.Ranges
 Imports OfficeOpenXml.Sorting
 Imports OfficeOpenXml.Style
 Imports SkiaSharp
@@ -69,6 +70,7 @@ Public Module Program
             For i = 2 To NbLignes
                 wsExcel.Cells(i, 1).Value = Nothing
                 wsExcel.Cells(i, 2).Value = Nothing
+                wsExcel.Cells(i, 3).Value = Nothing
                 wsExcel.Cells(i, 8).Value = Nothing
             Next
         Else
@@ -76,9 +78,14 @@ Public Module Program
             wsExcel.Name = "RAPPORT"
 
             wsExcel.Cells(1, 1).Value = "FEUILLE"
-            wsExcel.Cells(1, 2).Value = "Problème"
+            wsExcel.Cells(1, 2).Value = "ERR."
+            wsExcel.Cells(1, 3).Value = "Problème"
             wsExcel.Cells(1, 8).Value = "Criticité"
-            For i = 1 To 7
+            With wsExcel.Column(2)
+                .Width = 5
+                .Style.HorizontalAlignment = ExcelHorizontalAlignment.Center
+            End With
+            For i = 3 To 7
                 wsExcel.Columns(i).Width = 15
             Next
             With wsExcel.Cells("A1:H1").Style
@@ -261,7 +268,7 @@ Public Module Program
         TestErreur = False                  'initialisation du TestErreur à false
 
         If FeuilleExiste("PRIX") = False Then           'TEST présence feuille
-            Call Reporting("PRIX", "ARRET", "Feuille manquante", "RAPPORT")
+            Call Reporting("PRIX", "ARRET", "E01", "Feuille manquante", "RAPPORT")
             TestErreur = True
             Exit Sub
         End If
@@ -271,7 +278,7 @@ Public Module Program
         NbPrix = GetNonEmptyRows() - 1  'Compte le nbre de lignes
 
         If NbPrix > MaxPrix Then            'Test dépassement dimension maxi
-            Call Reporting("PRIX", "ARRET", "Nombre de prix dépasse la dimension > " & MaxPrix, "RAPPORT")
+            Call Reporting("PRIX", "ARRET", "E02", "Nombre de prix " & NbPrix & " dépasse la dimension " & MaxPrix, "RAPPORT")
             TestErreur = True
             Exit Sub
         End If
@@ -284,8 +291,8 @@ Public Module Program
                 If i > 1 Then
                     For j = 1 To i - 1          'Test codes en doublon
                         If CodePrix(i) = CodePrix(j) Then
-                            TexteMsg = "Colonne B, lignes " & i + 1 & " et " & j + 1 & " CodePrix " & CodePrix(i) & " en doublon"
-                            Call Reporting("PRIX", "ALERTE", TexteMsg, "PRIX")
+                            TexteMsg = "Col. B, lignes " & i + 1 & " et " & j + 1 & " CodePrix " & CodePrix(i) & " en doublon"
+                            Call Reporting("PRIX", "ALERTE", "E10", TexteMsg, "PRIX")
                             NbErreur += 1
                         End If
                     Next j
@@ -293,7 +300,7 @@ Public Module Program
             Next i
         Else
             TexteMsg = "Pas de code prix documenté"
-            Call Reporting("PRIX", "ALERTE", TexteMsg, "PRIX")
+            Call Reporting("PRIX", "ALERTE", "E11", TexteMsg, "PRIX")
             NbErreur += 1
         End If
 
@@ -302,7 +309,7 @@ Public Module Program
         '******************************************************************
 
         If FeuilleExiste("VIANDES") = False Then
-            Call Reporting("VIANDES", "ARRET", "Feuille manquante", "RAPPORT")
+            Call Reporting("VIANDES", "ARRET", "E01", "Feuille manquante", "RAPPORT")
             TestErreur = True
             Exit Sub
         End If
@@ -311,7 +318,7 @@ Public Module Program
         NbDenrees = GetNonEmptyRows() - 1
 
         If NbDenrees > MaxDenrees Then
-            Call Reporting("VIANDES", "ARRET", "Nombre de viandes dépasse la dimension > " & MaxDenrees, "RAPPORT")
+            Call Reporting("VIANDES", "ARRET", "E02", "Nombre de viandes " & NbDenrees & " dépasse la dimension " & MaxDenrees, "RAPPORT")
             TestErreur = True
             Exit Sub
         End If
@@ -341,7 +348,10 @@ Public Module Program
                 If wsExcel.Cells(i + 1, 4).Value = 1 Then ViandeSC(i) = True
                 ViandeSV(i) = False                 'SV = Sans Viande = vegan
                 If wsExcel.Cells(i + 1, 5).Value = 1 Then ViandeSV(i) = True
+
                 ResteQuant(i) = Quant(i)            'initialise le Reste à la quantité initiale
+
+                If VerifExiste(wsExcel.Cells(i + 1, 6).Value, "VIANDES", i, 6) = False Then Exit Sub  ' Teste si un CodePrix est saisi
                 CPViande = wsExcel.Cells(i + 1, 6).Value
                 PTotViande += Poids(i) * Quant(i)       'cumul du poids*quantité avec le total
             Next
@@ -352,7 +362,7 @@ Public Module Program
         '******************************************************************
 
         If FeuilleExiste("PREPARATIONS") = False Then
-            Call Reporting("PREPARATIONS", "ARRET", "Feuille manquante", "RAPPORT")
+            Call Reporting("PREPARATIONS", "ARRET", "E01", "Feuille manquante", "RAPPORT")
             TestErreur = True
             Exit Sub
         End If
@@ -361,7 +371,7 @@ Public Module Program
         NbPreparations = GetNonEmptyRows() - 1
 
         If NbPreparations > MaxDenrees Then
-            Call Reporting("PREPARATIONS", "ARRET", "Nombre de preparations dépasse la dimension > " & MaxDenrees, "RAPPORT")
+            Call Reporting("PREPARATIONS", "ARRET", "E02", "Nombre de preparations " & NbPreparations & " dépasse la dimension " & MaxDenrees, "RAPPORT")
             TestErreur = True
             Exit Sub
         End If
@@ -381,6 +391,8 @@ Public Module Program
 
             For i = 1 To NbPreparations
                 Preparation(i) = wsExcel.Cells(i + 1, 1).Value
+
+                If VerifExiste(wsExcel.Cells(i + 1, 2).Value, "PREPARATIONS", i, 2) = False Then Exit Sub
                 TestPrepa = wsExcel.Cells(i + 1, 2).Value
                 TestPrepa = TestPrepa.Substring(0, 1)
                 TestPrepa = TestPrepa.ToUpper()
@@ -393,8 +405,8 @@ Public Module Program
                     Case "G"            'Taille grande => poids = 120 gr
                         PoidsPrepa(i) = 30 * CoefPrepa
                     Case Else
-                        TexteMsg = "Preparation " & Preparation(i) & " Taille Petit-Moyen-Gros non reconnue"
-                        Call Reporting("PREPARATIONS", "ALERTE", TexteMsg, "PREPARATIONS")
+                        TexteMsg = "Ligne " & i + 1 & "  Préparation " & Preparation(i) & "Taille Petit-Moyen-Gros non reconnue"
+                        Call Reporting("PREPARATIONS", "ALERTE", "E05", TexteMsg, "PREPARATIONS")
                         NbErreur += 1
                 End Select
 
@@ -419,7 +431,7 @@ Public Module Program
         '***********************************************************
 
         If FeuilleExiste("SALADES") = False Then
-            Call Reporting("SALADES", "ARRET", "Feuille manquante", "RAPPORT")
+            Call Reporting("SALADES", "ARRET", "E01", "Feuille manquante", "RAPPORT")
             TestErreur = True
             Exit Sub
         End If
@@ -428,7 +440,7 @@ Public Module Program
         NbSalades = GetNonEmptyRows() - 1
 
         If NbSalades > MaxDenrees Then
-            Call Reporting("SALADES", "ARRET", "Nombre de salades dépasse la dimension > " & MaxDenrees, "SALADES")
+            Call Reporting("SALADES", "ARRET", "E02", "Nombre de salades " & NbSalades & " dépasse la dimension " & MaxDenrees, "SALADES")
             TestErreur = True
             Exit Sub
         End If
@@ -449,6 +461,8 @@ Public Module Program
             wsExcel.Cells(1, 8).Value = "Eqv Poids"
             For i = 1 To NbSalades
                 Salade(i) = wsExcel.Cells(i + 1, 1).Value
+
+                If VerifExiste(wsExcel.Cells(i + 1, 2).Value, "SALADES", i, 2) = False Then Exit Sub
                 TestPrepa = wsExcel.Cells(i + 1, 2).Value
                 TestPrepa = TestPrepa.Substring(0, 1)
                 TestPrepa = TestPrepa.ToUpper()
@@ -461,8 +475,8 @@ Public Module Program
                     Case "G"
                         PoidsSalade(i) = 30 * CoefSalade
                     Case Else
-                        TexteMsg = "Salade " & Salade(i) & " Taille Petit-Moyen-Gros non reconnue"
-                        Call Reporting("SALADES", "ALERTE", TexteMsg, "SALADES")
+                        TexteMsg = "Ligne " & i + 1 & "  Salade " & Salade(i) & "Taille Petit-Moyen-Gros non reconnue"
+                        Call Reporting("SALADES", "ALERTE", "E05", TexteMsg, "SALADES")
                         NbErreur += 1
                 End Select
 
@@ -486,7 +500,7 @@ Public Module Program
         '  lecture des LAITAGES
         '*****************************************************
         If FeuilleExiste("LAITAGES") = False Then
-            Call Reporting("LAITAGES", "ARRET", "Feuille manquante", "RAPPORT")
+            Call Reporting("LAITAGES", "ARRET", "E01", "Feuille manquante", "RAPPORT")
             TestErreur = True
             Exit Sub
         End If
@@ -495,7 +509,7 @@ Public Module Program
         NbLaitages = GetNonEmptyRows() - 1
 
         If NbLaitages > MaxDenrees Then
-            Call Reporting("LAITAGES", "ARRET", "Nombre de laitages dépasse la dimension > " & MaxDenrees, "RAPPORT")
+            Call Reporting("LAITAGES", "ARRET", "E02", "Nombre de laitages " & NbLaitages & " dépasse la dimension " & MaxDenrees, "RAPPORT")
             TestErreur = True
             Exit Sub
         End If
@@ -518,6 +532,7 @@ Public Module Program
                 Call VerifNumeric(wsExcel.Cells(i + 1, 2).Value, "Entier", "LAITAGES", i, 2) 'vérification de la quantité
                 QuantLait(i) = ValeurI
 
+                If VerifExiste(wsExcel.Cells(i + 1, 3).Value, "LAITAGES", i, 3) = False Then Exit Sub
                 TestPrepa = wsExcel.Cells(i + 1, 3).Value
                 TestPrepa = TestPrepa.ToUpper()
                 CatLait(i) = TestPrepa
@@ -544,7 +559,7 @@ Public Module Program
             Nbanti = GetNonEmptyRows() - 1
 
             If Nbanti > MaxDenrees Then
-                Call Reporting("ANTICIPES", "ARRET", "Nombre de denrées Anticipees dépasse la dimension > " & MaxDenrees, "RAPPORT")
+                Call Reporting("ANTICIPES", "ARRET", "E02", "Nombre de denrées Anticipees " & Nbanti & " dépasse la dimension " & MaxDenrees, "RAPPORT")
                 TestErreur = True
                 Exit Sub
             End If
@@ -564,6 +579,8 @@ Public Module Program
 
             For i = 1 To Nbanti
                 NomAnti(i) = wsExcel.Cells(i + 1, 1).Value          'Nom de la famille
+
+                If VerifExiste(wsExcel.Cells(i + 1, 2).Value, "ANTICIPES", i, 2) = False Then Exit Sub
                 TestType = wsExcel.Cells(i + 1, 2).Value
                 TestType = TestType.Substring(0, 1)
                 TestType = TestType.ToUpper()
@@ -571,7 +588,7 @@ Public Module Program
                     TypeAnti(i) = TestType                          ' type de produit
                 Else
                     TexteMsg = "Type " & wsExcel.Cells(i + 1, 2).Value & " à la ligne " & i + 1 & " n'est pas reconnue"
-                    Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "ANTICIPES")
+                    Call Reporting("ANTICIPES", "ALERTE", "E06", TexteMsg, "ANTICIPES")
                     NbErreur += 1
                 End If
                 DescAnti(i) = wsExcel.Cells(i + 1, 3).Value             'Description produit
@@ -580,6 +597,7 @@ Public Module Program
                     Call VerifNumeric(wsExcel.Cells(i + 1, 4).Value, "Reel", "ANTICIPES", i, 4)  'vérification du Poids 
                     PoidsAnti(i) = ValeurR
                 Else
+                    If VerifExiste(wsExcel.Cells(i + 1, 4).Value, "ANTICIPES", i, 4) = False Then Exit Sub
                     TestPrepa = wsExcel.Cells(i + 1, 4).Value
                     TestPrepa = TestPrepa.Substring(0, 1)
                     TestPrepa = TestPrepa.ToUpper()
@@ -592,8 +610,8 @@ Public Module Program
                         Case "G"            'Taille grande => poids = 120 gr
                             PoidsAnti(i) = 30 * CoefPrepa
                         Case Else
-                            TexteMsg = "Preparation ou salade " & DescAnti(i) & " Taille Petit-Moyen-Gros non reconnue"
-                            Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "ANTICIPES")
+                            TexteMsg = "Ligne " & i + 1 & " Préparation ou salade " & DescAnti(i) & " Taille Petit-Moyen-Gros non reconnue"
+                            Call Reporting("ANTICIPES", "ALERTE", "E05", TexteMsg, "ANTICIPES")
                             NbErreur += 1
                     End Select
                 End If
@@ -618,14 +636,14 @@ Public Module Program
         '  lecture des FAMILLES
         '*********************************************************
         If FeuilleExiste("FAMILLES") = False Then
-            Call Reporting("FAMILLES", "ARRET", "Feuille manquante", "RAPPORT")
+            Call Reporting("FAMILLES", "ARRET", "E01", "Feuille manquante", "RAPPORT")
             TestErreur = True
             Exit Sub
         End If
         wsExcel = wbExcel.Worksheets("FAMILLES")
         NbFamilles = GetNonEmptyRows() - 1
         If NbFamilles > MaxFamilles Then
-            Call Reporting("FAMILLES", "ARRET", "Nombre de laitages dépasse la dimension > " & MaxFamilles, "RAPPORT")
+            Call Reporting("FAMILLES", "ARRET", "E02", "Nombre de familles  " & NbFamilles & " dépasse la dimension " & MaxFamilles, "RAPPORT")
             TestErreur = True
             Exit Sub
         End If
@@ -665,7 +683,7 @@ Public Module Program
         Next
         ' teste le nombre de bénéficiaires
         If NbTotViande = 0 Then
-            Call Reporting("FAMILLES", "ARRET", " Le nombre de bénéficiaires est nul", "FAMILLES")
+            Call Reporting("FAMILLES", "ARRET", "E09", "Le nombre de bénéficiaires est nul", "FAMILLES")
             TestErreur = True
             Exit Sub
         End If
@@ -683,7 +701,7 @@ Public Module Program
                 Next
                 If Saut = False Then
                     TexteMsg = "Nom de la famille " & TestNom & " à la ligne " & i + 1 & " n'est pas reconnu dans la liste des familles"
-                    Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "ANTICIPES")
+                    Call Reporting("ANTICIPES", "ALERTE", "E07", TexteMsg, "ANTICIPES")
                     NbErreur += 1
                 End If
             Next
@@ -1243,7 +1261,7 @@ Public Module Program
         End If
 
         If NbDivers > MaxDenrees Then
-            Call Reporting("DIVERS", "ARRET", "Nombre de Divers dépasse la dimension > " & MaxDenrees, "RAPPORT")
+            Call Reporting("DIVERS", "ARRET", "E02", "Nombre de Divers " & NbDivers & " dépasse la dimension " & MaxDenrees, "RAPPORT")
             TestErreur = True
             Exit Sub
         End If
@@ -1560,8 +1578,8 @@ Public Module Program
 
                     If NumeMaxi = 0 Then
                         ' pas de famille trouvée en écart maxi   = problème
-                        TexteMsg = "(Sub. Attribution3) Arrêt à la denrée " & j & " sur " & Nbdenrees & " Répartition incomplète"
-                        Call Reporting("RESULTATS", "ARRET", TexteMsg, "RESULTATS")
+                        TexteMsg = "Arrêt à la denrée " & j & " sur " & Nbdenrees & " Répartition incomplète"
+                        Call Reporting("RESULTATS", "ARRET", "E16", TexteMsg, "RESULTATS")
                         TestErreur = True
                         Exit Sub
                     End If
@@ -1659,12 +1677,30 @@ SiErreur:
 
         ElseIf Cellule <> "" Then
             ColAlpha = AlphaCol(col)
-            TexteMsg = " A la ligne " & i + 1 & " Colonne " & ColAlpha & ", contenu:  " & Cellule & " n'est pas un nombre!"
-            Call Reporting(Onglet, "ARRET", TexteMsg, Onglet)
+            TexteMsg = "A la ligne " & i + 1 & ", colonne " & ColAlpha & ", contenu:  " & Cellule & " n'est pas un nombre!"
+            Call Reporting(Onglet, "ARRET", "E03", TexteMsg, Onglet)
             NbErreur += 1
             TestErreur = True
         End If
     End Sub
+
+    Public Function VerifExiste(Cellule As Object, Onglet As String, i As Integer, col As Integer) As Boolean
+        Dim ColAlpha As String              ' conversion de la colonne en alphanumérique
+        '  Vérifie si une cellule n'est pas vide
+        '  si c'est la cas,  affiche un message dans l'onglet Reporting avec l'onglet, la ligne et la colonne
+        '  impose une sortie avec TestErreur = true car sinon, bug à l'utilisation
+        '--------------------------------------------------------------------------------------------
+        VerifExiste = True
+        If Cellule = "" Then
+            ColAlpha = AlphaCol(col)
+            TexteMsg = "A la ligne " & i + 1 & ", colonne " & ColAlpha & "  Cellule vide "
+            Call Reporting(Onglet, "ARRET", "E04", TexteMsg, Onglet)
+            NbErreur += 1
+            TestErreur = True
+            VerifExiste = False
+        End If
+        Exit Function
+    End Function
     Public Sub TriMultiple(Feuille As String, Col1 As Integer, Mode1 As eSortOrder, Col2 As Integer, Mode2 As eSortOrder,
                     Col3 As Integer, Mode3 As eSortOrder, nbcol As Integer, nblignes As Integer)
         '------------------------------------------------------------------------------------
@@ -1688,12 +1724,13 @@ SiErreur:
     End Sub
 
 
-    Public Sub Reporting(Onglet As String, Criticite As String, ReportMsg As String, Retour As String)
+    Public Sub Reporting(Onglet As String, Criticite As String, CodeEr As String, ReportMsg As String, Retour As String)
 
         wsExcel = wbExcel.Worksheets("RAPPORT")
         nbReport += 1
         wsExcel.Cells(nbReport, 1).Value = Onglet
-        wsExcel.Cells(nbReport, 2).Value = ReportMsg
+        wsExcel.Cells(nbReport, 2).Value = CodeEr
+        wsExcel.Cells(nbReport, 3).Value = ReportMsg
         wsExcel.Cells(nbReport, 8).Value = Criticite
         wsExcel = wbExcel.Worksheets("" & Retour & "")
     End Sub
@@ -1752,14 +1789,15 @@ SiErreur:
         If NbAnti > 0 Then
 
             For i = 1 To NbAnti
+                If VerifExiste(wsExcel.Cells(i + 1, 2).Value, "ANTICIPES", i, 2) = False Then Exit Sub
                 TestType = wsExcel.Cells(i + 1, 2).Value            ' décode le type de denrée anticipée
                 TestType = TestType.Substring(0, 1)
                 TestType = TestType.ToUpper()
                 If TestType = "V" Or TestType = "P" Or TestType = "S" Then
                     TypeAnti(i) = TestType                          ' type de produit
                 Else
-                    TexteMsg = "Type " & wsExcel.Cells(i + 1, 2).Value & " à la ligne " & i + 1 & " n'est pas reconnue"
-                    Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "ANTICIPES")
+                    TexteMsg = "Type de denrée " & wsExcel.Cells(i + 1, 2).Value & " à la ligne " & i + 1 & " n'est pas reconnu"
+                    Call Reporting("ANTICIPES", "ALERTE", "E06", TexteMsg, "ANTICIPES")
                     NbErreur += 1
                 End If
                 DescAnti(i) = wsExcel.Cells(i + 1, 3).Value             'Description produit
@@ -1794,8 +1832,8 @@ SiErreur:
                     End If
                 Next j
                 If TestAnti = False Then
-                    TexteMsg = "Denrée en Colonne " & k + Decal & ":  " & Complet & " non reconue dans l'onglet ANTICIPES, pas de synthèse AIDA"
-                    Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RESULTATS")
+                    TexteMsg = "Denrée en Colonne " & k + Decal & ":  " & Complet & " non reconnue dans l'onglet ANTICIPES, pas de synthèse AIDA"
+                    Call Reporting("RESULTATS", "ALERTE", "E20", TexteMsg, "RESULTATS")
                     NbErreur += 1
                 End If
 
@@ -1969,7 +2007,6 @@ SiErreur:
         Dim PoidsCat(MaxPrix) As Single          'variable de travail
         Dim PrixPanier As Single                 ' Prix du panier *** dimension du nombre de familles****
 
-        Dim Test As Boolean
         Dim i As Integer
         Dim j As Integer
         Dim k As Integer
@@ -2023,17 +2060,21 @@ SiErreur:
 
         '----------------------lecture des codes prix ---------------------------------------
         If nbPrix > MaxPrix Then
-            TexteMsg = "Nombre de prix dépasse la dimension > " & MaxPrix
-            Call Reporting("PRIX", "ARRET", TexteMsg, "PRIX")
+            TexteMsg = "Nombre de prix " & nbPrix & " dépasse la dimension " & MaxPrix
+            Call Reporting("PRIX", "ARRET", "E02", TexteMsg, "PRIX")
             Exit Sub
         End If
 
         If nbPrix > 0 Then
             For i = 1 To nbPrix
+                If VerifExiste(wsExcel.Cells(i + 1, 2).Value, "PRIX", i, 2) = False Then Exit Sub
+                If VerifExiste(wsExcel.Cells(i + 1, 4).Value, "PRIX", i, 4) = False Then Exit Sub
+
                 CodePrix(i) = wsExcel.Cells(i + 1, 2).Value
                 CodeAIDA(i) = wsExcel.Cells(i + 1, 3).Value
                 UnitAIDA(i) = wsExcel.Cells(i + 1, 4).Value
                 PrixAIDA(i) = wsExcel.Cells(i + 1, 5).Value
+
                 Select Case UCase(UnitAIDA(i))
                     Case "KGM"
                         UnitAIDA(i) = "[KgM]"
@@ -2048,7 +2089,7 @@ SiErreur:
             Next i
         Else
             TexteMsg = "Pas de code prix documenté"
-            Call Reporting("PRIX", "ARRET", TexteMsg, "PRIX")
+            Call Reporting("PRIX", "ARRET", "E11", TexteMsg, "PRIX")
             Exit Sub
         End If
 
@@ -2064,9 +2105,14 @@ SiErreur:
 
         If nbdenrees > 0 Then
             For j = 1 To nbdenrees
+                If VerifExiste(wsExcel.Cells(j + 1, 6).Value, "VIANDES", j, 6) = False Then Exit Sub
                 CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value
             Next
 
+            ' teste que le code prix est bien présent dans la base Prix
+            Call TestCP(nbdenrees, nbPrix, CodePrixDenree, CodePrix, "VIANDES")
+
+            ' construit la liste unique des codes prix pour les cumuls AIDA
             Call ListeCategorie(nbdenrees, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
         UnitAIDA, Categorie, CatAIDA, UnAIDA, PrixAIDA, PrixListe)
         End If
@@ -2077,6 +2123,7 @@ SiErreur:
 
         If NbPreparations > 0 Then
             For j = 1 To NbPreparations
+                If VerifExiste(wsExcel.Cells(j + 1, 6).Value, "PREPARATIONS", j, 6) = False Then Exit Sub
                 CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value
                 PoidsVerif = wsExcel.Cells(j + 1, 7).Value
                 TestPrepa = wsExcel.Cells(j + 1, 1).Value
@@ -2084,6 +2131,10 @@ SiErreur:
                 Call VerifPoids(j, nbPrix, CodePrixDenree(j), CodePrix, UnitAIDA, PoidsVerif, TestPrepa, Onglet)
             Next j
 
+            ' teste que le code prix est bien présent dans la base Prix
+            Call TestCP(NbPreparations, nbPrix, CodePrixDenree, CodePrix, "PREPARATIONS")
+
+            ' construit la liste unique des codes prix pour les cumuls AIDA
             Call ListeCategorie(NbPreparations, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
             UnitAIDA, Categorie, CatAIDA, UnAIDA, PrixAIDA, PrixListe)
         End If
@@ -2094,6 +2145,7 @@ SiErreur:
 
         If NbSalades > 0 Then
             For j = 1 To NbSalades
+                If VerifExiste(wsExcel.Cells(j + 1, 6).Value, "SALADES", j, 6) = False Then Exit Sub
                 CodePrixDenree(j) = wsExcel.Cells(j + 1, 6).Value
                 PoidsVerif = wsExcel.Cells(j + 1, 7).Value
                 TestPrepa = wsExcel.Cells(j + 1, 1).Value
@@ -2101,6 +2153,10 @@ SiErreur:
                 Call VerifPoids(j, nbPrix, CodePrixDenree(j), CodePrix, UnitAIDA, PoidsVerif, TestPrepa, Onglet)
             Next j
 
+            ' teste que le code prix est bien présent dans la base Prix
+            Call TestCP(NbSalades, nbPrix, CodePrixDenree, CodePrix, "SALADES")
+
+            ' construit la liste unique des codes prix pour les cumuls AIDA
             Call ListeCategorie(NbSalades, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
             UnitAIDA, Categorie, CatAIDA, UnAIDA, PrixAIDA, PrixListe)
         End If
@@ -2112,12 +2168,17 @@ SiErreur:
         If NbLaitages > 0 Then
             For j = 1 To NbLaitages
                 TestPrepa = wsExcel.Cells(j + 1, 1).Value
+                If VerifExiste(wsExcel.Cells(j + 1, 5).Value, "LAITAGES", j, 5) = False Then Exit Sub
                 CodePrixDenree(j) = wsExcel.Cells(j + 1, 5).Value
                 PoidsVerif = wsExcel.Cells(j + 1, 6).Value
                 Onglet = "LAITAGES"
                 Call VerifPoids(j, nbPrix, CodePrixDenree(j), CodePrix, UnitAIDA, PoidsVerif, TestPrepa, Onglet)
             Next j
 
+            ' teste que le code prix est bien présent dans la base Prix
+            Call TestCP(NbLaitages, nbPrix, CodePrixDenree, CodePrix, "LAITAGES")
+
+            ' construit la liste unique des codes prix pour les cumuls AIDA
             Call ListeCategorie(NbLaitages, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
             UnitAIDA, Categorie, CatAIDA, UnAIDA, PrixAIDA, PrixListe)
         End If
@@ -2129,12 +2190,17 @@ SiErreur:
         If NbDivers > 0 Then
             For j = 1 To NbDivers
                 TestPrepa = wsExcel.Cells(j + 1, 1).Value
+                If VerifExiste(wsExcel.Cells(j + 1, 2).Value, "DIVERS", j, 2) = False Then Exit Sub
                 CodePrixDenree(j) = wsExcel.Cells(j + 1, 2).Value
                 PoidsVerif = wsExcel.Cells(j + 1, 3).Value
                 Onglet = "DIVERS"
                 Call VerifPoids(j, nbPrix, CodePrixDenree(j), CodePrix, UnitAIDA, PoidsVerif, TestPrepa, Onglet)
             Next j
 
+            ' teste que le code prix est bien présent dans la base Prix
+            Call TestCP(NbDivers, nbPrix, CodePrixDenree, CodePrix, "DIVERS")
+
+            ' construit la liste unique des codes prix pour les cumuls AIDA
             Call ListeCategorie(NbDivers, nbPrix, CodePrixDenree, CodePrix, CodeAIDA,
             UnitAIDA, Categorie, CatAIDA, UnAIDA, PrixAIDA, PrixListe)
         End If
@@ -2149,6 +2215,7 @@ SiErreur:
 
         If Nbanti > 0 Then
             For i = 1 To Nbanti
+                If VerifExiste(wsExcel.Cells(i + 1, 2).Value, "ANTICIPES", i, 2) = False Then Exit Sub
                 TestType = wsExcel.Cells(i + 1, 2).Value            ' décode le type de denrée anticipée
                 TestType = TestType.Substring(0, 1)
                 TestType = TestType.ToUpper()
@@ -2156,7 +2223,7 @@ SiErreur:
                     TypeAnti(i) = TestType                          ' type de produit
                 Else
                     TexteMsg = "Type " & wsExcel.Cells(i + 1, 2).Value & " à la ligne " & i + 1 & " n'est pas reconnue"
-                    Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "ANTICIPES")
+                    Call Reporting("ANTICIPES", "ALERTE", "E06", TexteMsg, "ANTICIPES")
                     NbErreur += 1
                 End If
                 DescAnti(i) = wsExcel.Cells(i + 1, 3).Value             'Description produit
@@ -2166,6 +2233,7 @@ SiErreur:
                     If TestErreur Then Exit Sub
                     PoidsAnti(i) = ValeurR
                 Else
+                    If VerifExiste(wsExcel.Cells(i + 1, 4).Value, "ANTICIPES", i, 4) = False Then Exit Sub
                     TestPrepa = wsExcel.Cells(i + 1, 4).Value       'décode la taille 
                     TestPrepa = TestPrepa.Substring(0, 1)
                     TestPrepa = TestPrepa.ToUpper()
@@ -2179,12 +2247,13 @@ SiErreur:
                             PoidsAnti(i) = 30 * CoefPrepa
                         Case Else
                             TexteMsg = "Preparation ou salade, ligne " & i + 1 & " Taille " & DescAnti(i) & " non reconnue"
-                            Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "ANTICIPES")
+                            Call Reporting("ANTICIPES", "ALERTE", "E05", TexteMsg, "ANTICIPES")
                             NbErreur += 1
                     End Select
                 End If
 
                 'vérification poids global si unité kgM
+                If VerifExiste(wsExcel.Cells(i + 1, 6).Value, "ANTICIPES", i, 6) = False Then Exit Sub
                 CodePrixAnti(i) = wsExcel.Cells(i + 1, 6).Value           'CodePrix
                 PoidsGlobalAnti(i) = wsExcel.Cells(i + 1, 7).Value           'PoidsGlobal pour unités KgM
                 PoidsVerif = PoidsGlobalAnti(i)
@@ -2193,31 +2262,14 @@ SiErreur:
                 Call VerifPoids(i, nbPrix, CodePrixAnti(i), CodePrix, UnitAIDA, PoidsVerif, TestPrepa, Onglet)
 
             Next i
+
+            ' teste que le code prix est bien présent dans la base Prix
+            Call TestCP(Nbanti, nbPrix, CodePrixAnti, CodePrix, "ANTICIPES")
             '-----------liste des codes anticipes------------------------------------------
             Call ListeCategorie(Nbanti, nbPrix, CodePrixAnti, CodePrix, CodeAIDA,
                 UnitAIDA, Categorie, CatAIDA, UnAIDA, PrixAIDA, PrixListe)
         End If
 
-        ' -----------------Vérification existence de chaque Code Prix dans la base prix-------------------
-
-        For i = 1 To NbCat
-            Test = False
-            For j = 1 To nbPrix
-                If Categorie(i) = CodePrix(j) Then
-                    Test = True
-                    Exit For
-                End If
-            Next j
-            If Test = False Then
-                TexteMsg = "Code Prix utilisé: " & Categorie(i) & " non déclaré dans la base PRIX"
-                Call Reporting("PRIX", "ALERTE", TexteMsg, "PRIX")
-                NbErreur += 1
-            End If
-
-            'Console.WriteLine("Categorie " & i & " Code Prix = " & Categorie(i) & " unite " & UnAIDA(i))
-
-        Next i
-        'StrOption = Console.ReadLine()
         '-----------Formattage feuille AIDA-----------------------------------------------------
         If FeuilleExiste("AIDA") = True Then
             wbExcel.Worksheets.Delete("AIDA")
@@ -2336,7 +2388,7 @@ SiErreur:
 
                 If NbDenreesAnti <> k Then
                     TexteMsg = "Nombre de viandes anticipées inexactes: NbDenreesAnti = " & NbDenreesAnti & "  k = " & k
-                    Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "RESULTATS")
+                    Call Reporting("ANTICIPES", "ALERTE", "E08", TexteMsg, "RESULTATS")
                     NbErreur += 1
                 End If
                 Call ReportCumul(NbDenreesAnti, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv)
@@ -2367,7 +2419,7 @@ SiErreur:
                 Next j
                 If NbPrepaAnti <> k Then
                     TexteMsg = "Nombre de préparations anticipées inexactes: nbPrepaAnti = " & NbPrepaAnti & "  k = " & k
-                    Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "RESULTATS")
+                    Call Reporting("ANTICIPES", "ALERTE", "E08", TexteMsg, "RESULTATS")
                     NbErreur += 1
                 End If
                 Call ReportCumul(NbPrepaAnti, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv)
@@ -2396,7 +2448,7 @@ SiErreur:
                 Next j
                 If NbSaladeAnti <> k Then
                     TexteMsg = "Nombre de salades anticipées inexactes: nbSaladeAnti = " & NbSaladeAnti & "  k = " & k
-                    Call Reporting("ANTICIPES", "ALERTE", TexteMsg, "RESULTATS")
+                    Call Reporting("ANTICIPES", "ALERTE", "E08", TexteMsg, "RESULTATS")
                     NbErreur += 1
                 End If
                 Call ReportCumul(NbSaladeAnti, Decal, i, CodePrixDenree, Categorie, PoidsCat, Poids, UnAIDA, Equiv)
@@ -2540,6 +2592,28 @@ SiErreur:
 
     End Sub
 
+    Sub TestCP(nbcat As Integer, nbPrix As Integer, Categorie() As String, CodePrix() As String, Onglet As String)
+        '   Teste l'existence des codes prix d'un onglet de denrées dans la base prix
+        Dim i As Integer
+        Dim j As Integer
+        Dim Test As Boolean
+
+        For i = 1 To nbcat
+            Test = False
+            For j = 1 To nbPrix
+                If Categorie(i) = CodePrix(j) Then
+                    Test = True
+                    Exit For
+                End If
+            Next j
+            If Test = False Then
+                TexteMsg = "Ligne " & i + 1 & "  Code Prix utilisé: " & Categorie(i) & " non déclaré dans la base PRIX"
+                Call Reporting(Onglet, "ALERTE", "E12", TexteMsg, Onglet)
+                NbErreur += 1
+            End If
+
+        Next i
+    End Sub
     Sub TestSomme2(nbden As Integer)
         '  ----- teste les quantités attribuées------------------
         Dim j As Integer
@@ -2573,12 +2647,12 @@ SiErreur:
             Select Case Total
                 Case 0      ' valeur nulle, rien de documenté
                     TexteMsg = "La somme de la colonne " & AlphaColTri & " est nulle"
-                    Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RESULTATS")
+                    Call Reporting("RESULTATS", "ALERTE", "E17", TexteMsg, "RESULTATS")
                     NbErreur += 1
                 Case Quant      ' valeur égale à la quantité déclarée, RAS
                 Case Else       ' valeur différente = alerte
                     TexteMsg = "Col " & AlphaColTri & " " & Intitule(0) & ":  Somme= " & Total & " différente de la quantité déclarée" & Quant
-                    Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RESULTATS")
+                    Call Reporting("RESULTATS", "ALERTE", "E18", TexteMsg, "RESULTATS")
                     NbErreur += 1
             End Select
         Next j
@@ -2611,7 +2685,7 @@ SiErreur:
             AlphaColTri = AlphaCol(j + Decal)
             If Total = 0 Then
                 TexteMsg = "La somme de la colonne " & AlphaColTri & " est nulle"
-                Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RESULTATS")
+                Call Reporting("RESULTATS", "ALERTE", "E17", TexteMsg, "RESULTATS")
                 NbErreur += 1
             End If
         Next j
@@ -2653,8 +2727,8 @@ SiErreur:
                 End Select
             Next k
             If Erreur Then
-                TexteMsg = "(ReportCumul) Pour les Codes Prix " & CatErreur & ", l'unité " & UnitErreur & " n'est pas reconnue"
-                Call Reporting("RESULTATS", "ALERTE", TexteMsg, "RAPPORT")
+                TexteMsg = "Pour les Codes Prix " & CatErreur & ", l'unité " & UnitErreur & " n'est pas reconnue"
+                Call Reporting("RESULTATS", "ALERTE", "E13", TexteMsg, "RAPPORT")
                 NbErreur += 1
             End If
 
@@ -2716,7 +2790,7 @@ SiErreur:
             If codeprixDenree = codeprix(i) Then
                 If unitAida(i) = "[kgM]" And PoidsVerif = 0 Then
                     TexteMsg = "Ligne " & j + 1 & " " & TestPrepa & ": unité " & unitAida(i) & " et Poids total nul, pas de valeur dans la col. AIDA  " & codeprixDenree
-                    Call Reporting(Onglet, "ALERTE", TexteMsg, Onglet)
+                    Call Reporting(Onglet, "ALERTE", "E19", TexteMsg, Onglet)
                     NbErreur += 1
                 End If
             End If
@@ -2818,6 +2892,11 @@ SiErreur:
         ' Dim drawFont As New System.Drawing.Font("Arial", 35)
         ' Dim drawBrush As New System.Drawing.SolidBrush(System.Drawing.Color.Black)
 
+        If String.IsNullOrEmpty(Contenu) Then
+            Contenu = "*** NUL ***"
+            Call Reporting("PRIX", "ALERTE", "E14", "Chaîne de caractères Code-Barres vide ", "AIDA")
+        End If
+
         Dim drawFont As New SKFont(SKTypeface.FromFamilyName("Arial"), 50)
         Dim textPaint As New SKPaint(drawFont)
         textPaint.Color = New SKColor(0, 0, 0, 255)
@@ -2868,7 +2947,6 @@ SiErreur:
 
         'Génération d'une erreur définie par l'utilisateur
         If String.IsNullOrEmpty(strChaine) Then
-            Call Reporting("AIDA", "ALERTE", "Chaîne de caractères Code-Barres nulle ", "AIDA")
             Code128 = ""
             ' MsgBox("chaine nulle ")
             Exit Function
@@ -3233,7 +3311,7 @@ SiErreur:
                 'Erreur
             Case Else
                 'MsgBox("motif inconnu " & AscW(strChaine))
-                Call Reporting("AIDA", "ARRET", "Motif Code-Barre inconnu: " & AscW(strChaine), "AIDA")
+                Call Reporting("PRIX", "ARRET", "E15", "Motif Code-Barre inconnu: " & AscW(strChaine), "AIDA")
 
         End Select
 
