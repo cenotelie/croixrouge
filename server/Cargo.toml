@@ -30,4 +30,4 @@ tokio-stream = "0.1.15"
 
 # framework for the application
 http-body = "1"
-axum = { version = "0.7", features = ["http2"] }
+axum = { version = "0.8", features = ["http2"] }
