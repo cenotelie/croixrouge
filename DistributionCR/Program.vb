@@ -160,6 +160,7 @@ Public Module Program
             appExcel.Save()
             appExcel = Nothing
             wbExcel = Nothing
+
         End If
     End Sub
 
@@ -337,16 +338,21 @@ Public Module Program
             For i = 1 To NbDenrees
                 Description(i) = wsExcel.Cells(i + 1, 1).Value
                 Call VerifNumeric(wsExcel.Cells(i + 1, 2).Value, "Reel", "VIANDES", i, 2)
+                If TestErreur Then Exit Sub
                 Poids(i) = ValeurR
-                'Console.WriteLine("Ligne " & i + 1 & " col 2= " & wsExcel.Cells(i + 1, 2).Value & "  Poids= " & Poids(i) & "  NbErreur= " & NbErreur)
+
                 Call VerifNumeric(wsExcel.Cells(i + 1, 3).Value, "Entier", "VIANDES", i, 3)
+                If TestErreur Then Exit Sub
                 Quant(i) = ValeurI
-                'Console.WriteLine("Ligne " & i + 1 & " col 3= " & wsExcel.Cells(i + 1, 3).Value & "  Quant= " & Quant(i) & "  NbErreur= " & NbErreur)
-                'StrOption = Console.ReadLine()
 
                 ViandeSC(i) = False                 'SC = Sans Cochon = musulman
+                Call VerifNumeric(wsExcel.Cells(i + 1, 4).Value, "Entier", "VIANDES", i, 4)
+                If TestErreur Then Exit Sub
                 If wsExcel.Cells(i + 1, 4).Value = 1 Then ViandeSC(i) = True
+
                 ViandeSV(i) = False                 'SV = Sans Viande = vegan
+                Call VerifNumeric(wsExcel.Cells(i + 1, 5).Value, "Entier", "VIANDES", i, 5)
+                If TestErreur Then Exit Sub
                 If wsExcel.Cells(i + 1, 5).Value = 1 Then ViandeSV(i) = True
 
                 ResteQuant(i) = Quant(i)            'initialise le Reste à la quantité initiale
@@ -411,16 +417,23 @@ Public Module Program
                 End Select
 
                 Call VerifNumeric(wsExcel.Cells(i + 1, 3).Value, "Entier", "PREPARATIONS", i, 3) 'vérification de la quantité
+                If TestErreur Then Exit Sub
                 QuantPrepa(i) = ValeurI
                 QuantTotPrepa += QuantPrepa(i)
                 PTotPrepa += QuantPrepa(i) * PoidsPrepa(i)
 
                 Call VerifNumeric(wsExcel.Cells(i + 1, 7).Value, "Reel", "PREPARATIONS", i, 7)  'vérification du Poids Global
-
+                If TestErreur Then Exit Sub
                 wsExcel.Cells(i + 1, 8).Value = PoidsPrepa(i)
+
                 PrepaSC(i) = False
+                Call VerifNumeric(wsExcel.Cells(i + 1, 4).Value, "Entier", "PREPARATIONS", i, 4) 'vérification SansCochon
+                If TestErreur Then Exit Sub
                 If wsExcel.Cells(i + 1, 4).Value = 1 Then PrepaSC(i) = True
+
                 PrepaSV(i) = False
+                Call VerifNumeric(wsExcel.Cells(i + 1, 5).Value, "Entier", "PREPARATIONS", i, 5) 'vérification SansViande
+                If TestErreur Then Exit Sub
                 If wsExcel.Cells(i + 1, 5).Value = 1 Then PrepaSV(i) = True
 
             Next i
@@ -481,16 +494,23 @@ Public Module Program
                 End Select
 
                 Call VerifNumeric(wsExcel.Cells(i + 1, 3).Value, "Entier", "SALADES", i, 3) 'vérification de la quantité
+                If TestErreur Then Exit Sub
                 QuantSalade(i) = ValeurI
                 QuantTotSalad += QuantSalade(i)
                 PTotSalad += QuantSalade(i) * PoidsSalade(i)
 
                 Call VerifNumeric(wsExcel.Cells(i + 1, 7).Value, "Reel", "SALADES", i, 7)  'vérification du Poids Global
-
+                If TestErreur Then Exit Sub
                 wsExcel.Cells(i + 1, 8).Value = PoidsSalade(i)
                 SaladeSC(i) = False
+
+                Call VerifNumeric(wsExcel.Cells(i + 1, 3).Value, "Entier", "SALADES", i, 4) 'vérification de SansCochon
+                If TestErreur Then Exit Sub
                 If wsExcel.Cells(i + 1, 4).Value = 1 Then SaladeSC(i) = True
                 SaladeSV(i) = False
+
+                Call VerifNumeric(wsExcel.Cells(i + 1, 3).Value, "Entier", "SALADES", i, 5) 'vérification de SansViande
+                If TestErreur Then Exit Sub
                 If wsExcel.Cells(i + 1, 5).Value = 1 Then SaladeSV(i) = True
 
             Next i
@@ -530,6 +550,7 @@ Public Module Program
             For i = 1 To NbLaitages
                 Laitage(i) = wsExcel.Cells(i + 1, 1).Value
                 Call VerifNumeric(wsExcel.Cells(i + 1, 2).Value, "Entier", "LAITAGES", i, 2) 'vérification de la quantité
+                If TestErreur Then Exit Sub
                 QuantLait(i) = ValeurI
 
                 If VerifExiste(wsExcel.Cells(i + 1, 3).Value, "LAITAGES", i, 3) = False Then Exit Sub
@@ -545,6 +566,7 @@ Public Module Program
                 CPLait = wsExcel.Cells(i + 1, 5).Value
 
                 Call VerifNumeric(wsExcel.Cells(i + 1, 6).Value, "Reel", "LAITAGES", i, 6)  'vérification du Poids Global
+                If TestErreur Then Exit Sub
 
             Next i
         End If
@@ -595,6 +617,7 @@ Public Module Program
 
                 If TypeAnti(i) = "V" Then
                     Call VerifNumeric(wsExcel.Cells(i + 1, 4).Value, "Reel", "ANTICIPES", i, 4)  'vérification du Poids 
+                    If TestErreur Then Exit Sub
                     PoidsAnti(i) = ValeurR
                 Else
                     If VerifExiste(wsExcel.Cells(i + 1, 4).Value, "ANTICIPES", i, 4) = False Then Exit Sub
@@ -617,10 +640,12 @@ Public Module Program
                 End If
 
                 Call VerifNumeric(wsExcel.Cells(i + 1, 5).Value, "Entier", "ANTICIPES", i, 5) 'vérification de la quantité
+                If TestErreur Then Exit Sub
                 QuantAnti(i) = ValeurI
 
                 CodePrixanti(i) = wsExcel.Cells(i + 1, 6).Value                             'CodePrix
                 Call VerifNumeric(wsExcel.Cells(i + 1, 7).Value, "Reel", "ANTICIPES", i, 7)  'vérification du Poids Global
+                If TestErreur Then Exit Sub
 
                 '  Cumul des poids suivant le type de produit
                 If TypeAnti(i) = "V" Then PTotViande += PoidsAnti(i) * QuantAnti(i)
@@ -1681,6 +1706,7 @@ SiErreur:
             Call Reporting(Onglet, "ARRET", "E03", TexteMsg, Onglet)
             NbErreur += 1
             TestErreur = True
+            Call Colexit()
         End If
     End Sub
 
@@ -1796,7 +1822,7 @@ SiErreur:
                 If TestType = "V" Or TestType = "P" Or TestType = "S" Then
                     TypeAnti(i) = TestType                          ' type de produit
                 Else
-                    TexteMsg = "Type de denrée " & wsExcel.Cells(i + 1, 2).Value & " à la ligne " & i + 1 & " n'est pas reconnu"
+                    TexteMsg = "Type de denree " & wsExcel.Cells(i + 1, 2).Value & " à la ligne " & i + 1 & " n'est pas reconnu"
                     Call Reporting("ANTICIPES", "ALERTE", "E06", TexteMsg, "ANTICIPES")
                     NbErreur += 1
                 End If
@@ -1832,7 +1858,7 @@ SiErreur:
                     End If
                 Next j
                 If TestAnti = False Then
-                    TexteMsg = "Denrée en Colonne " & k + Decal & ":  " & Complet & " non reconnue dans l'onglet ANTICIPES, pas de synthèse AIDA"
+                    TexteMsg = "Denree en Colonne " & k + Decal & ":  " & Complet & " non reconnue dans l'onglet ANTICIPES, pas de synthèse AIDA"
                     Call Reporting("RESULTATS", "ALERTE", "E20", TexteMsg, "RESULTATS")
                     NbErreur += 1
                 End If
@@ -2088,7 +2114,7 @@ SiErreur:
                 End Select
             Next i
         Else
-            TexteMsg = "Pas de code prix documenté"
+            TexteMsg = "Pas de code prix documente"
             Call Reporting("PRIX", "ARRET", "E11", TexteMsg, "PRIX")
             Exit Sub
         End If
@@ -2387,7 +2413,7 @@ SiErreur:
                 ' k= nombre de viandes anticipées recalculées dans la liste réduite
 
                 If NbDenreesAnti <> k Then
-                    TexteMsg = "Nombre de viandes anticipées inexactes: NbDenreesAnti = " & NbDenreesAnti & "  k = " & k
+                    TexteMsg = "Nombre de viandes anticipees inexactes: NbDenreesAnti = " & NbDenreesAnti & "  k = " & k
                     Call Reporting("ANTICIPES", "ALERTE", "E08", TexteMsg, "RESULTATS")
                     NbErreur += 1
                 End If
@@ -2418,7 +2444,7 @@ SiErreur:
                     End If
                 Next j
                 If NbPrepaAnti <> k Then
-                    TexteMsg = "Nombre de préparations anticipées inexactes: nbPrepaAnti = " & NbPrepaAnti & "  k = " & k
+                    TexteMsg = "Nombre de preparations anticipees inexactes: nbPrepaAnti = " & NbPrepaAnti & "  k = " & k
                     Call Reporting("ANTICIPES", "ALERTE", "E08", TexteMsg, "RESULTATS")
                     NbErreur += 1
                 End If
@@ -2447,7 +2473,7 @@ SiErreur:
                     End If
                 Next j
                 If NbSaladeAnti <> k Then
-                    TexteMsg = "Nombre de salades anticipées inexactes: nbSaladeAnti = " & NbSaladeAnti & "  k = " & k
+                    TexteMsg = "Nombre de salades anticipees inexactes: nbSaladeAnti = " & NbSaladeAnti & "  k = " & k
                     Call Reporting("ANTICIPES", "ALERTE", "E08", TexteMsg, "RESULTATS")
                     NbErreur += 1
                 End If
@@ -2607,7 +2633,7 @@ SiErreur:
                 End If
             Next j
             If Test = False Then
-                TexteMsg = "Ligne " & i + 1 & "  Code Prix utilisé: " & Categorie(i) & " non déclaré dans la base PRIX"
+                TexteMsg = "Ligne " & i + 1 & "  Code Prix utilise: " & Categorie(i) & " non declare dans la base PRIX"
                 Call Reporting(Onglet, "ALERTE", "E12", TexteMsg, Onglet)
                 NbErreur += 1
             End If
@@ -2651,7 +2677,7 @@ SiErreur:
                     NbErreur += 1
                 Case Quant      ' valeur égale à la quantité déclarée, RAS
                 Case Else       ' valeur différente = alerte
-                    TexteMsg = "Col " & AlphaColTri & " " & Intitule(0) & ":  Somme= " & Total & " différente de la quantité déclarée" & Quant
+                    TexteMsg = "Col " & AlphaColTri & " " & Intitule(0) & ":  Somme= " & Total & " differente de la quantite declaree" & Quant
                     Call Reporting("RESULTATS", "ALERTE", "E18", TexteMsg, "RESULTATS")
                     NbErreur += 1
             End Select
@@ -2789,7 +2815,7 @@ SiErreur:
         For i = 1 To nbprix
             If codeprixDenree = codeprix(i) Then
                 If unitAida(i) = "[kgM]" And PoidsVerif = 0 Then
-                    TexteMsg = "Ligne " & j + 1 & " " & TestPrepa & ": unité " & unitAida(i) & " et Poids total nul, pas de valeur dans la col. AIDA  " & codeprixDenree
+                    TexteMsg = "Ligne " & j + 1 & " " & TestPrepa & ": unite " & unitAida(i) & " et Poids total nul, pas de valeur dans la col. AIDA  " & codeprixDenree
                     Call Reporting(Onglet, "ALERTE", "E19", TexteMsg, Onglet)
                     NbErreur += 1
                 End If
