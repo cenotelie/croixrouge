@@ -756,7 +756,7 @@ Public Module Program
         wsExcel.Name = "RESULTATS"
 
         wsExcel.Cells(1, 1).Value = "Nr CAISSE"
-        wsExcel.Cells(1, 2).Value = "FAMILLE"
+        wsExcel.Cells(1, 2).Value = "Le " & DateTime.Now.Date
         wsExcel.Cells(1, 3).Value = "Beneficiaires"
         wsExcel.Cells(1, 4).Value = "Sans Cochon"
         wsExcel.Cells(1, 5).Value = "Sans Viande"
@@ -1350,6 +1350,9 @@ Public Module Program
             .HorizontalAlignment = ExcelHorizontalAlignment.Center
             .TextRotation = 90
             .Font.Bold = True
+            .Border.Bottom.Style = ExcelBorderStyle.Medium
+        End With
+        With wsExcel.Cells("A1:B1").Style
             .Border.Bottom.Style = ExcelBorderStyle.Medium
         End With
 
@@ -2754,7 +2757,7 @@ SiErreur:
             Next k
             If Erreur Then
                 TexteMsg = "Pour les Codes Prix " & CatErreur & ", l'unité " & UnitErreur & " n'est pas reconnue"
-                Call Reporting("RESULTATS", "ALERTE", "E13", TexteMsg, "RAPPORT")
+                Call Reporting("RESULTATS", "ALERTE", "E13", TexteMsg, "RESULTATS")
                 NbErreur += 1
             End If
 
