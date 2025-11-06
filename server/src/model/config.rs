@@ -55,7 +55,7 @@ impl Configuration {
             log_datetime_format: get_var("CROIXROUGE_LOG_DATE_TIME_FORMAT")
                 .unwrap_or_else(|_| String::from("[%Y-%m-%d %H:%M:%S]")),
             web_listenon_ip: get_var("CROIXROUGE_WEB_LISTENON_IP").map_or_else(
-                |_| IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+                |_| IpAddr::V4(Ipv4Addr::UNSPECIFIED),
                 |s| IpAddr::from_str(&s).expect("invalud CROIXROUGE_WEB_LISTENON_IP"),
             ),
             web_listenon_port: get_var("CROIXROUGE_WEB_LISTENON_PORT")

@@ -4,10 +4,6 @@
 
 //! Main module
 
-// #![forbid(unsafe_code)]
-#![warn(clippy::pedantic)]
-#![allow(clippy::module_name_repetitions)]
-
 use std::net::SocketAddr;
 use std::pin::pin;
 use std::str::FromStr;
@@ -102,7 +98,7 @@ fn setup_log() {
 #[tokio::main]
 async fn main() {
     setup_log();
-    info!("{} commit={} tag={}", CRATE_NAME, GIT_HASH, GIT_TAG);
+    info!("{CRATE_NAME} commit={GIT_HASH} tag={GIT_TAG}");
 
     let application = crate::application::Application::launch();
 
