@@ -686,11 +686,11 @@ Public Module Program
         Next
 
         col1 = 8                            'colonne H
-        Mode1 = eSortOrder.Descending       ' tri croissant
+        Mode1 = eSortOrder.Descending       ' tri croissant  SC-SV
         col2 = 5
-        Mode2 = eSortOrder.Descending
+        Mode2 = eSortOrder.Descending       'bénéficiaires
         col3 = 10
-        Mode3 = eSortOrder.Ascending
+        Mode3 = eSortOrder.Ascending        'random
         Call TriMultiple("FAMILLES", col1, Mode1, col2, Mode2, col3, Mode3, 10, NbFamilles + 1)
 
         NbTotViande = 0
@@ -705,6 +705,7 @@ Public Module Program
             TestSCSV(i) = wsExcel.Cells(i + 1, 8).Value
             NbTotViande += NBenef(i)
             Panier(i) = 0
+
         Next
         ' teste le nombre de bénéficiaires
         If NbTotViande = 0 Then
@@ -745,6 +746,7 @@ Public Module Program
             TestErreur = True
             Exit Sub
         End If
+
         '*********************************************************
         ' Mise en forme onglet RESULTATS
         '*********************************************************
@@ -756,7 +758,7 @@ Public Module Program
         wsExcel.Name = "RESULTATS"
 
         wsExcel.Cells(1, 1).Value = "Nr CAISSE"
-        wsExcel.Cells(1, 2).Value = "FAMILLE"
+        wsExcel.Cells(1, 2).Value = "Le " & DateTime.Now.Date
         wsExcel.Cells(1, 3).Value = "Beneficiaires"
         wsExcel.Cells(1, 4).Value = "Sans Cochon"
         wsExcel.Cells(1, 5).Value = "Sans Viande"
@@ -857,18 +859,30 @@ Public Module Program
 
         'tri des familles
         wsExcel = wbExcel.Worksheets("FAMILLES")
-        col1 = 7            'Col G
+
+        'recopie la col TestSCSV de la col H de FAMILLES dans la col Decal+1 de RESULTATS
+        AlphaColTri = AlphaCol(Decal + 1)
+        wsExcel.Cells("H1:H" & NbFamilles + 1).Copy(wbExcel.Worksheets("RESULTATS").Cells(AlphaColTri & "1:" & AlphaColTri & NbFamilles + 1))
+
+        ' recopie l'ordre de tri de la col J Random dans la col decal+2 de l'onglet RESULTATS
+        AlphaColTri2 = AlphaCol(Decal + 2)
+        wsExcel.Cells("J1:J" & NbFamilles + 1).Copy(wbExcel.Worksheets("RESULTATS").Cells(AlphaColTri2 & "1:" & AlphaColTri2 & NbFamilles + 1))
+
+        wsExcel = wbExcel.Worksheets("FAMILLES")
+        col1 = 8         'Col TestSCSV
         Mode1 = eSortOrder.Descending       ' tri descending
-        col2 = 6            'Col F
-        Mode2 = eSortOrder.Descending
         If NbDenrees > 0 Then
             ' tri sur les écarts de poids (attribué - théorique) pour prioriser l'attribution des préparations
-            col3 = 9            'col I
-            Mode3 = eSortOrder.Ascending
+            col2 = 9
+            Mode2 = eSortOrder.Ascending
         Else
-            col3 = 5
-            Mode3 = eSortOrder.Descending
+            ' sinon tri sur le nbre de bénéficiaires
+            col2 = 5
+            Mode2 = eSortOrder.Descending
         End If
+        col3 = 10         'Col  Random
+        Mode3 = eSortOrder.Ascending
+
         Call TriMultiple("FAMILLES", col1, Mode1, col2, Mode2, col3, Mode3, 10, NbFamilles + 1)
 
         'on relit les familles après le tri
@@ -884,21 +898,35 @@ Public Module Program
             Panier(i) = wsExcel.Cells(i + 1, 9).Value
         Next
 
-        ' tri des résultats, de la même façon
         wsExcel = wbExcel.Worksheets("RESULTATS")
-        col1 = 5
+
+        col1 = Decal + 1        'Col TestSCSV
         Mode1 = eSortOrder.Descending       ' tri descending
-        col2 = 4
-        Mode2 = eSortOrder.Descending
+
         If NbDenrees > 0 Then
-            col3 = Decal
-            Mode3 = eSortOrder.Ascending
+            ' tri sur les écarts de poids (attribué - théorique) pour prioriser l'attribution des préparations
+            col2 = Decal
+            Mode2 = eSortOrder.Ascending
         Else
-            col3 = 3
-            Mode3 = eSortOrder.Descending
+            ' sinon tri sur le nbre de bénéficiaires
+            col2 = 3
+            Mode2 = eSortOrder.Descending
         End If
+        col3 = Decal + 2         'Col  Random
+        Mode3 = eSortOrder.Ascending
+
         k = NbDenrees + NbPreparations + NbSalades + NbLaitages + Nbanti + 30           'estimation nombre de colonnes
         Call TriMultiple("RESULTATS", col1, Mode1, col2, Mode2, col3, Mode3, k, NbFamilles + 2)
+
+        'efface la colonne Test SCSV  et random  après avoir effectué le tri
+        wsExcel.Cells(AlphaColTri & "1:" & AlphaColTri & NbFamilles + 1).Clear()
+        wsExcel.Cells(AlphaColTri2 & "1:" & AlphaColTri2 & NbFamilles + 1).Clear()
+
+        'StrOption = AlphaColTri2 & "2:" & AlphaColTri2 & NbFamilles + 1
+        'Console.WriteLine("str =" & StrOption)
+        'StrOption = Console.ReadLine()
+        'Call Colexit()
+        'Exit Sub
 
         '***************************************************************************
         '    PLATS PREPARES ANTICIPES
@@ -943,7 +971,7 @@ Public Module Program
             For i = 1 To NbFamilles
                 PoidsTheo(i) = PTotPrepa * NBenef(i) / NbTotViande
             Next
-            'en tête de l'onglet RESULTATS
+            'en-tête de l'onglet RESULTATS
             For i = 1 To NbPreparations
                 wsExcel.Cells(1, i + Decal).Value = Preparation(i) & " " & TaillePrepa(i) & " (" & QuantPrepa(i) & ")"
             Next
@@ -973,7 +1001,6 @@ Public Module Program
             wsExcel = wbExcel.Worksheets("RESULTATS")
             Decal = Decal + NbPreparations + 1
         End If
-
 
 
         '***************************************************************************
@@ -1062,9 +1089,9 @@ Public Module Program
 
         'tri des familles
         wsExcel = wbExcel.Worksheets("FAMILLES")
-        col1 = 5
+        col1 = 5        'Nb bénéficiaires
         Mode1 = eSortOrder.Descending       ' tri descending
-        col2 = 1
+        col2 = 1        ' Num de caisse
         Mode2 = eSortOrder.Ascending
         col3 = 0
         Mode3 = eSortOrder.Ascending
@@ -1085,9 +1112,10 @@ Public Module Program
 
         ' tri des résultats, de la même façon
         wsExcel = wbExcel.Worksheets("RESULTATS")
-        col1 = 3
-        Mode1 = eSortOrder.Descending       ' tri descending
-        col2 = 1
+
+        col1 = 3        ' Nbre bénéficiaires
+        Mode1 = eSortOrder.Descending
+        col2 = 1         ' numero de caisse
         Mode2 = eSortOrder.Ascending
         col3 = 0
         Mode3 = eSortOrder.Descending
@@ -1350,6 +1378,9 @@ Public Module Program
             .HorizontalAlignment = ExcelHorizontalAlignment.Center
             .TextRotation = 90
             .Font.Bold = True
+            .Border.Bottom.Style = ExcelBorderStyle.Medium
+        End With
+        With wsExcel.Cells("A1:B1").Style
             .Border.Bottom.Style = ExcelBorderStyle.Medium
         End With
 
@@ -1876,6 +1907,7 @@ SiErreur:
 
         Decal += NbDenreesAnti
 
+
         '---------calcul du panier pour les viandes ------------------------------------------------------
         wsExcel = wbExcel.Worksheets("VIANDES")
         NbDenrees = GetNonEmptyRows() - 1
@@ -1914,34 +1946,36 @@ SiErreur:
         wsExcel = wbExcel.Worksheets("PREPARATIONS")
         NbPreparations = GetNonEmptyRows() - 1
 
-        If NbPreparations > 0 Then
+        If NbPreparations > 0 Or NbPrepaAnti > 0 Then
             wsExcel = wbExcel.Worksheets("RESULTATS")
             '---------calcul des totaux par produit--------------------------
-            For j = 1 To NbPreparations
+            For j = 1 To NbPreparations + NbPrepaAnti
                 TotalFamille = 0
                 For i = 1 To NbFamilles
                     TotalFamille += wsExcel.Cells(i + 1, Decal + j).Value
                 Next i
                 wsExcel.Cells(NbFamilles + 2, Decal + j).Value = TotalFamille
             Next j
-            Decal += NbPreparations + NbPrepaAnti + 1
+            Decal += NbPrepaAnti
+            If NbPreparations > 0 Then Decal += NbPreparations + 1
         End If
 
         '-------------------SALADES --------------------------------------------
         wsExcel = wbExcel.Worksheets("SALADES")
         NbSalades = GetNonEmptyRows() - 1
 
-        If NbSalades > 0 Then
+        If NbSalades > 0 Or NbSaladeAnti > 0 Then
             wsExcel = wbExcel.Worksheets("RESULTATS")
             '---------calcul des totaux par produit--------------------------
-            For j = 1 To NbSalades
+            For j = 1 To NbSalades + NbSaladeAnti
                 TotalFamille = 0
                 For i = 1 To NbFamilles
                     TotalFamille += wsExcel.Cells(i + 1, Decal + j).Value
                 Next i
                 wsExcel.Cells(NbFamilles + 2, Decal + j).Value = TotalFamille
             Next j
-            Decal += NbSalades + NbSaladeAnti + 1
+            Decal += NbSaladeAnti
+            If NbSalades > 0 Then Decal += NbSalades + 1
         End If
 
         '------calcul des totaux pour les laitages ----------------------------------------------------------
@@ -2340,25 +2374,35 @@ SiErreur:
         '------------------Vérification des totaux en bas de colonne---------------------------------
         wsExcel = wbExcel.Worksheets("RESULTATS")
         Decal = 5
+        'TexteMsg = "Nbdenrees= " & nbdenrees & "  nbdenreesanti= " & NbDenreesAnti
+        'Call Reporting("RESULTATS", "ALERTE", "xxx", TexteMsg, "RESULTATS")
         If nbdenrees > 0 Or NbDenreesAnti > 0 Then
             Call TestSomme2(nbdenrees + NbDenreesAnti)      ' teste si somme des quant. attribuées = quant. déclarée et si somme non nulle
             Decal += NbDenreesAnti
             If nbdenrees > 0 Then Decal += nbdenrees + 3
         End If
+        'TexteMsg = "Nbpreparation = " & NbPreparations & "  nbprepaAnti= " & NbPrepaAnti
+        'Call Reporting("RESULTATS", "ALERTE", "xxx", TexteMsg, "RESULTATS")
         If NbPreparations > 0 Or NbPrepaAnti > 0 Then
             Call TestSomme2(NbPreparations + NbPrepaAnti)
             Decal += NbPrepaAnti
             If NbPreparations > 0 Then Decal += NbPreparations + 1
         End If
+        'TexteMsg = "Nbsalade = " & NbSalades & "  nbsaladAnti= " & NbSaladeAnti
+        'Call Reporting("RESULTATS", "ALERTE", "xxx", TexteMsg, "RESULTATS")
         If NbSalades > 0 Or NbSaladeAnti > 0 Then
             Call TestSomme2(NbSalades + NbSaladeAnti)
             Decal += NbSaladeAnti
             If NbSalades > 0 Then Decal += NbSalades + 1
         End If
+        'TexteMsg = "Nblaitages = " & NbLaitages
+        'Call Reporting("RESULTATS", "ALERTE", "xxx", TexteMsg, "RESULTATS")
         If NbLaitages > 0 Then
             Call TestSomme2(NbLaitages)
             Decal += NbLaitages + 2
         End If
+        'TexteMsg = "Nbdivers = " & NbDivers
+        'Call Reporting("RESULTATS", "ALERTE", "xxx", TexteMsg, "RESULTATS")
         If NbDivers > 0 Then
             Call TestSomme(NbDivers)        'pas de quantité déclarée, test si somme nulle seulement
         End If
@@ -2754,7 +2798,7 @@ SiErreur:
             Next k
             If Erreur Then
                 TexteMsg = "Pour les Codes Prix " & CatErreur & ", l'unité " & UnitErreur & " n'est pas reconnue"
-                Call Reporting("RESULTATS", "ALERTE", "E13", TexteMsg, "RAPPORT")
+                Call Reporting("RESULTATS", "ALERTE", "E13", TexteMsg, "RESULTATS")
                 NbErreur += 1
             End If
 
